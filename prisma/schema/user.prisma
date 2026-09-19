@@ -22,5 +22,7 @@ model User {
 
   refreshSessions RefreshSession[]
 
+  auditLogs AuditLog[]
+
   @@map("users")
 }

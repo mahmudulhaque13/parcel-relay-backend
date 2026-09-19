@@ -14,5 +14,7 @@ model CourierProfile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  shipments Shipment[] @relation("CourierShipments")
+
   @@map("courier_profiles")
 }

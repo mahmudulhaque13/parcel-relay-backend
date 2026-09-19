@@ -34,10 +34,16 @@ model Shipment {
 
   paymentAttempts PaymentAttempt[]
 
+  courierId String?
+
+  courier CourierProfile? @relation("CourierShipments", fields: [courierId], references: [id], onDelete: SetNull)
+
+  @@index([courierId])
   @@index([customerId])
   @@index([originZoneId])
   @@index([destinationZoneId])
   @@index([status])
   @@index([paymentStatus])
   @@map("shipments")
+  
 }

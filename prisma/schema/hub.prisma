@@ -10,6 +10,9 @@ model Hub {
 
   zone Zone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
 
+  outgoingTransfers ShipmentTransfer[] @relation("FromHubTransfers")
+  incomingTransfers ShipmentTransfer[] @relation("ToHubTransfers")
+
   @@index([zoneId])
   @@map("hubs")
 }

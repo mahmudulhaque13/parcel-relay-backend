@@ -26,6 +26,10 @@ model Shipment {
   originZone        Zone           @relation("OriginZoneShipments", fields: [originZoneId], references: [id], onDelete: Restrict)
   destinationZone   Zone           @relation("DestinationZoneShipments", fields: [destinationZoneId], references: [id], onDelete: Restrict)
 
+  pickupRequest PickupRequest?
+
+  transfers ShipmentTransfer[]
+
   @@index([customerId])
   @@index([originZoneId])
   @@index([destinationZoneId])

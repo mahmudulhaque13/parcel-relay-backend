@@ -1,0 +1,14 @@
+model PickupRequest {
+  id          String       @id @default(uuid())
+  shipmentId  String       @unique
+  pickupDate  DateTime?
+  notes       String?
+  status      PickupStatus @default(REQUESTED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("pickup_requests")
+}

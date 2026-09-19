@@ -1,0 +1,15 @@
+model Hub {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  address     String
+  zoneId      String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  zone Zone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@index([zoneId])
+  @@map("hubs")
+}

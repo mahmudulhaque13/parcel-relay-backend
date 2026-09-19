@@ -1,10 +1,12 @@
 import bcrypt from "bcrypt";
 import httpStatus from "http-status-codes";
+import { jwtUtils } from "../../utils/jwt";
 
 import config from "../../config";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import type { ILoginUser, IRegisterUser } from "./auth.interface";
+import { SignOptions } from "jsonwebtoken";
 
 const registerUser = async (payload: IRegisterUser) => {
   const existingUser = await prisma.user.findUnique({
@@ -77,12 +79,36 @@ const loginUser = async (payload: ILoginUser) => {
     throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
   }
 
+  const accessToken = jwtUtils.createToken(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions["expiresIn"],
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in as SignOptions["expiresIn"],
+  );
+
   return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    status: user.status,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+    },
+    accessToken,
+    refreshToken,
   };
 };
 

@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status-codes";
 
-import { authService } from "./auth.service";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
+import { authService } from "./auth.service";
 
 const registerUser = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.registerUser(req.body);
@@ -25,7 +25,16 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMe = catchAsync(async (req: Request, res: Response) => {
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "User retrieved successfully",
+    data: req.user,
+  });
+});
+
 export const authController = {
   registerUser,
   loginUser,
+  getMe,
 };

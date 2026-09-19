@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { validateRequest } from "../../middleware/validateRequest";
+import { auth } from "../../middleware/checkAuth";
 import { authController } from "./auth.controller";
 import { authValidation } from "./auth.validation";
 
@@ -17,5 +18,7 @@ router.post(
   validateRequest(authValidation.loginValidation),
   authController.loginUser,
 );
+
+router.get("/me", auth(), authController.getMe);
 
 export const authRoutes = router;

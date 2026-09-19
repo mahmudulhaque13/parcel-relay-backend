@@ -32,6 +32,8 @@ model Shipment {
 
   events ShipmentEvent[]
 
+  paymentAttempts PaymentAttempt[]
+
   @@index([customerId])
   @@index([originZoneId])
   @@index([destinationZoneId])

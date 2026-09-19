@@ -1,0 +1,18 @@
+model PaymentAttempt {
+  id              String        @id @default(uuid())
+  shipmentId      String
+  transactionId   String        @unique
+  amount          Decimal       @db.Decimal(10, 2)
+  method          PaymentMethod @default(SSLCOMMERZ)
+  status          PaymentStatus @default(PENDING)
+  gatewayResponse Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
+  @@index([status])
+  @@map("payment_attempts")
+}

@@ -33,8 +33,19 @@ const getMe = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const adminTest = catchAsync(async (_req: Request, res: Response) => {
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Admin authorization successful",
+    data: {
+      message: "Only ADMIN can access this resource",
+    },
+  });
+});
+
 export const authController = {
   registerUser,
   loginUser,
   getMe,
+  adminTest,
 };

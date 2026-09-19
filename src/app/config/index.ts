@@ -20,4 +20,8 @@ export default {
 
   rate_limit_window_ms: process.env.RATE_LIMIT_WINDOW_MS || "900000",
   rate_limit_max: process.env.RATE_LIMIT_MAX || "100",
+
+  admin_name: process.env.ADMIN_NAME!,
+  admin_email: process.env.ADMIN_EMAIL!,
+  admin_password: process.env.ADMIN_PASSWORD!,
 };

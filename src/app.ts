@@ -12,6 +12,7 @@ import { notFound } from "./app/middleware/notFound";
 import { apiRateLimiter } from "./app/middleware/rateLimiter";
 import { authRoutes } from "./app/module/auth/auth.route";
 import { healthRoutes } from "./app/module/health/health.route";
+import { userRoutes } from "./app/module/user/user.route";
 
 const app: Application = express();
 
@@ -57,6 +58,7 @@ app.get("/", (_req: Request, res: Response) => {
 
 app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
 
 // ---- 404 + centralized error handling (must be last) ----
 

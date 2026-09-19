@@ -5,6 +5,7 @@ model Shipment {
   customerId        String
   originZoneId      String
   destinationZoneId String
+  pricingRuleId     String?
 
   recipientName     String
   recipientPhone    String
@@ -25,6 +26,7 @@ model Shipment {
   customer          User           @relation("CustomerShipments", fields: [customerId], references: [id], onDelete: Restrict)
   originZone        Zone           @relation("OriginZoneShipments", fields: [originZoneId], references: [id], onDelete: Restrict)
   destinationZone   Zone           @relation("DestinationZoneShipments", fields: [destinationZoneId], references: [id], onDelete: Restrict)
+  pricingRule PricingRule? @relation("PricingRuleShipments", fields: [pricingRuleId], references: [id], onDelete: SetNull)
 
   pickupRequest PickupRequest?
 
@@ -38,6 +40,7 @@ model Shipment {
 
   courier CourierProfile? @relation("CourierShipments", fields: [courierId], references: [id], onDelete: SetNull)
 
+  @@index([pricingRuleId])
   @@index([courierId])
   @@index([customerId])
   @@index([originZoneId])

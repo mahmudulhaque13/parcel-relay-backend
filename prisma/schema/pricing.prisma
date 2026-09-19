@@ -8,5 +8,7 @@ model PricingRule {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  shipments Shipment[] @relation("PricingRuleShipments")
+
   @@map("pricing_rules")
 }

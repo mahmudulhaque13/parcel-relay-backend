@@ -1,12 +1,14 @@
-import type { Server } from 'node:http';
-import app from './app';
-import { env } from './app/config/env';
+import type { Server } from "node:http";
+import app from "./app";
+import config from "./app/config";
 
 let server: Server;
 
 function bootstrap(): void {
-  server = app.listen(env.PORT, () => {
-    console.log(`🚀 ParcelRelay API running on port ${env.PORT} [${env.NODE_ENV}]`);
+  server = app.listen(config.port, () => {
+    console.log(
+      `🚀 ParcelRelay API running on port ${config.port} [${config.node_env}]`,
+    );
   });
 }
 
@@ -24,16 +26,16 @@ function shutdown(signal: string): void {
 
   // Safety net: force-exit if connections do not drain in time.
   setTimeout(() => {
-    console.error('Forced shutdown after timeout.');
+    console.error("Forced shutdown after timeout.");
     process.exit(1);
   }, 10_000).unref();
 }
 
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
   if (server) {
     server.close(() => process.exit(1));
   } else {
@@ -41,8 +43,8 @@ process.on('unhandledRejection', (reason) => {
   }
 });
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
   process.exit(1);
 });
 

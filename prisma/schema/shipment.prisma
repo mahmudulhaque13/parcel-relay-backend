@@ -30,6 +30,8 @@ model Shipment {
 
   transfers ShipmentTransfer[]
 
+  events ShipmentEvent[]
+
   @@index([customerId])
   @@index([originZoneId])
   @@index([destinationZoneId])

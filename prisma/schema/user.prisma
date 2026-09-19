@@ -20,5 +20,7 @@ model User {
 
   courierProfile CourierProfile?
 
+  refreshSessions RefreshSession[]
+
   @@map("users")
 }

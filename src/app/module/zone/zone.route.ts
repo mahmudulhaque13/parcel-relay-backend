@@ -15,4 +15,6 @@ router.post(
   zoneController.createZone,
 );
 
+router.get("/", auth(UserRole.ADMIN), zoneController.getAllZones);
+
 export const zoneRoutes = router;

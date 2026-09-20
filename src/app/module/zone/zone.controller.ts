@@ -15,6 +15,17 @@ const createZone = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAllZones = catchAsync(async (_req: Request, res: Response) => {
+  const result = await zoneService.getAllZones();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Zones retrieved successfully",
+    data: result,
+  });
+});
+
 export const zoneController = {
   createZone,
+  getAllZones,
 };

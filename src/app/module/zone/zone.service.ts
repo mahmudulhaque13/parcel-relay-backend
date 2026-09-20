@@ -29,6 +29,20 @@ const createZone = async (payload: ICreateZone) => {
   return zone;
 };
 
+const getAllZones = async () => {
+  const zones = await prisma.zone.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return zones;
+};
+
 export const zoneService = {
   createZone,
+  getAllZones,
 };

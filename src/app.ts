@@ -14,6 +14,7 @@ import { authRoutes } from "./app/module/auth/auth.route";
 import { healthRoutes } from "./app/module/health/health.route";
 import { userRoutes } from "./app/module/user/user.route";
 import { zoneRoutes } from "./app/module/zone/zone.route";
+import { hubRoutes } from "./app/module/hub/hub.route";
 
 const app: Application = express();
 
@@ -61,6 +62,7 @@ app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/zones", zoneRoutes);
+app.use("/api/v1/hubs", hubRoutes);
 
 // ---- 404 + centralized error handling (must be last) ----
 

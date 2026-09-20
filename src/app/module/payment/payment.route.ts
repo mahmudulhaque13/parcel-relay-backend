@@ -1,0 +1,22 @@
+import express from "express";
+
+import { paymentController } from "./payment.controller";
+import { paymentValidation } from "./payment.validation";
+import { validateRequest } from "../../middleware/validateRequest";
+import { auth } from "../../middleware/checkAuth";
+import { UserRole } from "../../../generated/prisma/client";
+
+const router = express.Router();
+
+router.post(
+  "/initiate",
+  auth(UserRole.CUSTOMER),
+  validateRequest(paymentValidation.initiatePaymentValidation),
+  paymentController.initiatePayment,
+);
+
+router.get("/success", paymentController.paymentSuccess);
+
+router.get("/cancel", paymentController.paymentCancel);
+
+export const paymentRoutes = router;

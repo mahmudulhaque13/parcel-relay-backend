@@ -39,6 +39,7 @@ enum PaymentStatus {
 
 enum PaymentMethod {
   SSLCOMMERZ
+  STRIPE
 }
 
 enum PickupStatus {

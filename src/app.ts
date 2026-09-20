@@ -16,6 +16,9 @@ import { userRoutes } from "./app/module/user/user.route";
 import { zoneRoutes } from "./app/module/zone/zone.route";
 import { hubRoutes } from "./app/module/hub/hub.route";
 import { pricingRoutes } from "./app/module/pricing/pricing.route";
+import { shipmentRoutes } from "./app/module/shipment/shipment.route";
+import { paymentRoutes } from "./app/module/payment/payment.route";
+import { paymentController } from "./app/module/payment/payment.controller";
 
 const app: Application = express();
 
@@ -31,6 +34,15 @@ app.use(
     origin: config.frontend_url,
     credentials: true,
   }),
+);
+
+// Stripe webhook MUST be before express.json()
+app.post(
+  "/api/v1/payments/webhook",
+  express.raw({
+    type: "application/json",
+  }),
+  paymentController.handleWebhook,
 );
 
 // ---- Body parsing ----
@@ -65,6 +77,8 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/zones", zoneRoutes);
 app.use("/api/v1/hubs", hubRoutes);
 app.use("/api/v1/pricing", pricingRoutes);
+app.use("/api/v1/shipments", shipmentRoutes);
+app.use("/api/v1/payments", paymentRoutes);
 
 // ---- 404 + centralized error handling (must be last) ----
 

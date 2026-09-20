@@ -17,4 +17,17 @@ router.post(
 
 router.get("/", auth(UserRole.ADMIN), zoneController.getAllZones);
 
+router.patch(
+  "/:id",
+  auth(UserRole.ADMIN),
+  validateRequest(zoneValidation.updateZoneValidation),
+  zoneController.updateZone,
+);
+
+router.patch(
+  "/:id/deactivate",
+  auth(UserRole.ADMIN),
+  zoneController.deactivateZone,
+);
+
 export const zoneRoutes = router;

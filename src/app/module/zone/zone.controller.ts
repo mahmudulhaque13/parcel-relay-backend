@@ -25,7 +25,32 @@ const getAllZones = catchAsync(async (_req: Request, res: Response) => {
   });
 });
 
+const updateZone = catchAsync(async (req: Request, res: Response) => {
+  const result = await zoneService.updateZone(
+    req.params.id as string,
+    req.body,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Zone updated successfully",
+    data: result,
+  });
+});
+
+const deactivateZone = catchAsync(async (req: Request, res: Response) => {
+  const result = await zoneService.deactivateZone(req.params.id as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Zone deactivated successfully",
+    data: result,
+  });
+});
+
 export const zoneController = {
   createZone,
   getAllZones,
+  updateZone,
+  deactivateZone,
 };

@@ -28,6 +28,12 @@ router.post(
 
 router.get("/my", auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
 
+router.get(
+  "/:id/timeline",
+  auth(UserRole.CUSTOMER),
+  shipmentController.getShipmentTimeline,
+);
+
 router.get("/:id", auth(UserRole.CUSTOMER), shipmentController.getShipmentById);
 
 router.patch(

@@ -42,6 +42,19 @@ const getShipmentById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getShipmentTimeline = catchAsync(async (req: Request, res: Response) => {
+  const result = await shipmentService.getShipmentTimeline(
+    req.params.id,
+    req.user!.id,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Shipment timeline retrieved successfully",
+    data: result,
+  });
+});
+
 const updateShipmentStatus = catchAsync(async (req: Request, res: Response) => {
   const result = await shipmentService.updateShipmentStatus(
     req.params.id,
@@ -113,6 +126,7 @@ export const shipmentController = {
   updateShipment,
   getMyShipments,
   getShipmentById,
+  getShipmentTimeline,
   updateShipmentStatus,
   deleteShipment,
   cancelShipment,

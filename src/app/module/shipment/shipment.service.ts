@@ -462,6 +462,39 @@ const getShipmentById = async (shipmentId: string, customerId: string) => {
   return shipment;
 };
 
+const getShipmentTimeline = async (shipmentId: string, customerId: string) => {
+  const shipment = await prisma.shipment.findFirst({
+    where: {
+      id: shipmentId,
+      customerId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      trackingNumber: true,
+      status: true,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  const events = await prisma.shipmentEvent.findMany({
+    where: {
+      shipmentId,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  return {
+    shipment,
+    events,
+  };
+};
+
 const updateShipmentStatus = async (
   shipmentId: string,
   actorId: string,
@@ -677,6 +710,7 @@ export const shipmentService = {
   updateShipment,
   getMyShipments,
   getShipmentById,
+  getShipmentTimeline,
   updateShipmentStatus,
   deleteShipment,
   cancelShipment,

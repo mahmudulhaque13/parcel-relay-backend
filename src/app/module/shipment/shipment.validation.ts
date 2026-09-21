@@ -24,6 +24,16 @@ const createShipmentValidation = z.object({
   codAmount: z.number().nonnegative("COD amount cannot be negative"),
 });
 
+const shipmentQuoteValidation = z.object({
+  originZoneId: z.string().uuid("Invalid origin zone ID"),
+
+  destinationZoneId: z.string().uuid("Invalid destination zone ID"),
+
+  weight: z.number().positive("Weight must be greater than 0"),
+
+  codAmount: z.number().nonnegative("COD amount cannot be negative"),
+});
+
 const updateShipmentStatusValidation = z.object({
   status: z.enum([
     "PENDING_PAYMENT",
@@ -42,11 +52,14 @@ const updateShipmentStatusValidation = z.object({
     "RETURNED_TO_SENDER",
     "CANCELLED",
   ]),
+
   note: z.string().max(500).optional(),
+
   location: z.string().max(200).optional(),
 });
 
 export const shipmentValidation = {
   createShipmentValidation,
+  shipmentQuoteValidation,
   updateShipmentStatusValidation,
 };

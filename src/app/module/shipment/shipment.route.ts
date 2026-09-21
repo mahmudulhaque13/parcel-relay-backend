@@ -1,12 +1,23 @@
 import { Router } from "express";
 
-import { auth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { shipmentController } from "./shipment.controller";
-import { shipmentValidation } from "./shipment.validation";
 import { UserRole } from "../../../generated/prisma/enums";
 
+import { auth } from "../../middleware/checkAuth";
+
+import { validateRequest } from "../../middleware/validateRequest";
+
+import { shipmentController } from "./shipment.controller";
+
+import { shipmentValidation } from "./shipment.validation";
+
 const router = Router();
+
+router.post(
+  "/quote",
+  auth(UserRole.CUSTOMER),
+  validateRequest(shipmentValidation.shipmentQuoteValidation),
+  shipmentController.getShipmentQuote,
+);
 
 router.post(
   "/",

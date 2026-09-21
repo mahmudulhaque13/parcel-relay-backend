@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import type {
   ICreateShipment,
+  IShipmentQuote,
   IUpdateShipmentStatus,
 } from "./shipment.interface";
 
@@ -12,6 +13,88 @@ const generateTrackingNumber = () => {
   const randomNumber = Math.floor(1000 + Math.random() * 9000);
 
   return `PR-${timestamp}-${randomNumber}`;
+};
+
+const getShipmentQuote = async (payload: IShipmentQuote) => {
+  const originZone = await prisma.zone.findUnique({
+    where: {
+      id: payload.originZoneId,
+    },
+  });
+
+  if (!originZone) {
+    throw new AppError(httpStatus.NOT_FOUND, "Origin zone not found");
+  }
+
+  if (!originZone.isActive) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Origin zone is inactive");
+  }
+
+  const destinationZone = await prisma.zone.findUnique({
+    where: {
+      id: payload.destinationZoneId,
+    },
+  });
+
+  if (!destinationZone) {
+    throw new AppError(httpStatus.NOT_FOUND, "Destination zone not found");
+  }
+
+  if (!destinationZone.isActive) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Destination zone is inactive");
+  }
+
+  const pricingRule = await prisma.pricingRule.findFirst({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!pricingRule) {
+    throw new AppError(httpStatus.NOT_FOUND, "No active pricing rule found");
+  }
+
+  const basePrice = Number(pricingRule.basePrice);
+  const perKgPrice = Number(pricingRule.perKgPrice);
+  const codPercentage = Number(pricingRule.codPercentage);
+
+  const weightCharge = payload.weight * perKgPrice;
+
+  const codCharge = (payload.codAmount * codPercentage) / 100;
+
+  const deliveryCharge = basePrice + weightCharge + codCharge;
+
+  return {
+    originZone: {
+      id: originZone.id,
+      name: originZone.name,
+      code: originZone.code,
+    },
+
+    destinationZone: {
+      id: destinationZone.id,
+      name: destinationZone.name,
+      code: destinationZone.code,
+    },
+
+    pricing: {
+      pricingRuleId: pricingRule.id,
+      basePrice,
+      perKgPrice,
+      codPercentage,
+      weightCharge,
+      codCharge,
+      deliveryCharge,
+    },
+
+    shipment: {
+      weight: payload.weight,
+      codAmount: payload.codAmount,
+    },
+  };
 };
 
 const createShipment = async (customerId: string, payload: ICreateShipment) => {
@@ -283,6 +366,7 @@ const updateShipmentStatus = async (
 };
 
 export const shipmentService = {
+  getShipmentQuote,
   createShipment,
   getMyShipments,
   getShipmentById,

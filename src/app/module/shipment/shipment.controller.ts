@@ -53,9 +53,20 @@ const updateShipmentStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getShipmentQuote = catchAsync(async (req: Request, res: Response) => {
+  const result = await shipmentService.getShipmentQuote(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Shipment quote calculated successfully",
+    data: result,
+  });
+});
+
 export const shipmentController = {
   createShipment,
   getMyShipments,
   getShipmentById,
   updateShipmentStatus,
+  getShipmentQuote,
 };

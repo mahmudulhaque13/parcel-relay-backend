@@ -16,3 +16,10 @@ export interface IUpdateShipmentStatus {
   note?: string;
   location?: string;
 }
+
+export interface IShipmentQuote {
+  originZoneId: string;
+  destinationZoneId: string;
+  weight: number;
+  codAmount: number;
+}

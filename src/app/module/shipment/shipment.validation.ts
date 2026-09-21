@@ -58,8 +58,35 @@ const updateShipmentStatusValidation = z.object({
   location: z.string().max(200).optional(),
 });
 
+const updateShipmentValidation = z.object({
+  recipientName: z
+    .string()
+    .min(2, "Recipient name must be at least 2 characters")
+    .optional(),
+
+  recipientPhone: z
+    .string()
+    .min(7, "Invalid recipient phone number")
+    .optional(),
+
+  deliveryAddress: z
+    .string()
+    .min(5, "Delivery address must be at least 5 characters")
+    .optional(),
+
+  packageDescription: z
+    .string()
+    .min(2, "Package description must be at least 2 characters")
+    .optional(),
+
+  weight: z.number().positive("Weight must be greater than 0").optional(),
+
+  codAmount: z.number().nonnegative("COD amount cannot be negative").optional(),
+});
+
 export const shipmentValidation = {
   createShipmentValidation,
   shipmentQuoteValidation,
   updateShipmentStatusValidation,
+  updateShipmentValidation,
 };

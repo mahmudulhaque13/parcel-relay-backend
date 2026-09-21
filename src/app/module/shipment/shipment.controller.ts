@@ -63,10 +63,25 @@ const getShipmentQuote = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateShipment = catchAsync(async (req: Request, res: Response) => {
+  const result = await shipmentService.updateShipment(
+    req.params.id,
+    req.user!.id,
+    req.body,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Shipment updated successfully",
+    data: result,
+  });
+});
+
 export const shipmentController = {
+  getShipmentQuote,
   createShipment,
+  updateShipment,
   getMyShipments,
   getShipmentById,
   updateShipmentStatus,
-  getShipmentQuote,
 };

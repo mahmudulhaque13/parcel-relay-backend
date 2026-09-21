@@ -30,6 +30,13 @@ router.get("/my", auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
 
 router.get("/:id", auth(UserRole.CUSTOMER), shipmentController.getShipmentById);
 
+router.patch(
+  "/:id",
+  auth(UserRole.CUSTOMER),
+  validateRequest(shipmentValidation.updateShipmentValidation),
+  shipmentController.updateShipment,
+);
+
 // Shipment status transition
 router.patch(
   "/:id/status",

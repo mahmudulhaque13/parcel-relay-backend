@@ -23,3 +23,12 @@ export interface IShipmentQuote {
   weight: number;
   codAmount: number;
 }
+
+export interface IUpdateShipment {
+  recipientName?: string;
+  recipientPhone?: string;
+  deliveryAddress?: string;
+  packageDescription?: string;
+  weight?: number;
+  codAmount?: number;
+}

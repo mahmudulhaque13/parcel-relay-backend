@@ -5,6 +5,7 @@ import { AppError } from "../../utils/AppError";
 import type {
   ICreateShipment,
   IShipmentQuote,
+  IUpdateShipment,
   IUpdateShipmentStatus,
 } from "./shipment.interface";
 
@@ -95,6 +96,130 @@ const getShipmentQuote = async (payload: IShipmentQuote) => {
       codAmount: payload.codAmount,
     },
   };
+};
+
+const updateShipment = async (
+  shipmentId: string,
+  customerId: string,
+  payload: IUpdateShipment,
+) => {
+  const shipment = await prisma.shipment.findUnique({
+    where: {
+      id: shipmentId,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  if (shipment.customerId !== customerId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to update this shipment",
+    );
+  }
+
+  if (shipment.status !== "PENDING_PAYMENT") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Shipment can only be updated before payment",
+    );
+  }
+
+  if (shipment.paymentStatus !== "PENDING") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Shipment payment has already been processed",
+    );
+  }
+
+  const pricingRule = await prisma.pricingRule.findFirst({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!pricingRule) {
+    throw new AppError(httpStatus.NOT_FOUND, "No active pricing rule found");
+  }
+
+  const weight = payload.weight ?? Number(shipment.weight);
+  const codAmount = payload.codAmount ?? Number(shipment.codAmount);
+
+  const basePrice = Number(pricingRule.basePrice);
+  const perKgPrice = Number(pricingRule.perKgPrice);
+  const codPercentage = Number(pricingRule.codPercentage);
+
+  const weightCharge = weight * perKgPrice;
+  const codCharge = (codAmount * codPercentage) / 100;
+
+  const deliveryCharge = basePrice + weightCharge + codCharge;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedShipment = await tx.shipment.updateMany({
+      where: {
+        id: shipmentId,
+        customerId,
+        status: "PENDING_PAYMENT",
+        paymentStatus: "PENDING",
+      },
+      data: {
+        ...(payload.recipientName !== undefined && {
+          recipientName: payload.recipientName,
+        }),
+
+        ...(payload.recipientPhone !== undefined && {
+          recipientPhone: payload.recipientPhone,
+        }),
+
+        ...(payload.deliveryAddress !== undefined && {
+          deliveryAddress: payload.deliveryAddress,
+        }),
+
+        ...(payload.packageDescription !== undefined && {
+          packageDescription: payload.packageDescription,
+        }),
+
+        weight,
+        codAmount,
+        deliveryCharge,
+        pricingRuleId: pricingRule.id,
+      },
+    });
+
+    if (updatedShipment.count !== 1) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Shipment was changed by another request",
+      );
+    }
+
+    await tx.auditLog.create({
+      data: {
+        userId: customerId,
+        action: "UPDATE",
+        entityType: "Shipment",
+        entityId: shipmentId,
+        description: "Shipment details updated",
+        metadata: {
+          updatedFields: Object.keys(payload),
+          deliveryCharge,
+        },
+      },
+    });
+
+    return tx.shipment.findUnique({
+      where: {
+        id: shipmentId,
+      },
+    });
+  });
+
+  return result;
 };
 
 const createShipment = async (customerId: string, payload: ICreateShipment) => {
@@ -368,6 +493,7 @@ const updateShipmentStatus = async (
 export const shipmentService = {
   getShipmentQuote,
   createShipment,
+  updateShipment,
   getMyShipments,
   getShipmentById,
   updateShipmentStatus,

@@ -303,6 +303,7 @@ const getMyShipments = async (customerId: string) => {
   const shipments = await prisma.shipment.findMany({
     where: {
       customerId,
+      isDeleted: false,
     },
     include: {
       originZone: true,
@@ -318,9 +319,11 @@ const getMyShipments = async (customerId: string) => {
 };
 
 const getShipmentById = async (shipmentId: string, customerId: string) => {
-  const shipment = await prisma.shipment.findUnique({
+  const shipment = await prisma.shipment.findFirst({
     where: {
       id: shipmentId,
+      customerId,
+      isDeleted: false,
     },
     include: {
       originZone: true,
@@ -336,13 +339,6 @@ const getShipmentById = async (shipmentId: string, customerId: string) => {
 
   if (!shipment) {
     throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
-  }
-
-  if (shipment.customerId !== customerId) {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      "You do not have permission to access this shipment",
-    );
   }
 
   return shipment;
@@ -490,6 +486,73 @@ const updateShipmentStatus = async (
   };
 };
 
+const deleteShipment = async (shipmentId: string, userId: string) => {
+  const shipment = await prisma.shipment.findUnique({
+    where: {
+      id: shipmentId,
+    },
+    select: {
+      id: true,
+      customerId: true,
+      status: true,
+      paymentStatus: true,
+      isDeleted: true,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  if (shipment.customerId !== userId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You are not allowed to delete this shipment",
+    );
+  }
+
+  if (shipment.isDeleted) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  if (shipment.status !== "PENDING_PAYMENT") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Only pending payment shipments can be deleted",
+    );
+  }
+
+  if (shipment.paymentStatus !== "PENDING") {
+    throw new AppError(httpStatus.CONFLICT, "Paid shipment cannot be deleted");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedShipment = await tx.shipment.update({
+      where: {
+        id: shipmentId,
+      },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        userId,
+        action: "DELETE",
+        entityType: "Shipment",
+        entityId: shipmentId,
+        description: "Shipment soft deleted",
+      },
+    });
+
+    return updatedShipment;
+  });
+
+  return result;
+};
+
 export const shipmentService = {
   getShipmentQuote,
   createShipment,
@@ -497,4 +560,5 @@ export const shipmentService = {
   getMyShipments,
   getShipmentById,
   updateShipmentStatus,
+  deleteShipment,
 };

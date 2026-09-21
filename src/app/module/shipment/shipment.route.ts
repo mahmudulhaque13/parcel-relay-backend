@@ -37,6 +37,12 @@ router.patch(
   shipmentController.updateShipment,
 );
 
+router.delete(
+  "/:id",
+  auth(UserRole.CUSTOMER),
+  shipmentController.deleteShipment,
+);
+
 // Shipment status transition
 router.patch(
   "/:id/status",

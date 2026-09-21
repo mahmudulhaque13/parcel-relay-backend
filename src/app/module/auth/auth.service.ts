@@ -1,12 +1,18 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import httpStatus from "http-status-codes";
-import { jwtUtils } from "../../utils/jwt";
+import { SignOptions } from "jsonwebtoken";
 
 import config from "../../config";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
+import { jwtUtils } from "../../utils/jwt";
+
 import type { ILoginUser, IRegisterUser } from "./auth.interface";
-import { SignOptions } from "jsonwebtoken";
+
+const hashRefreshToken = (token: string) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
 
 const registerUser = async (payload: IRegisterUser) => {
   const existingUser = await prisma.user.findUnique({
@@ -99,6 +105,19 @@ const loginUser = async (payload: ILoginUser) => {
     config.jwt_refresh_expires_in as SignOptions["expiresIn"],
   );
 
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+
+  const refreshExpiresAt = new Date();
+  refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7);
+
+  await prisma.refreshSession.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshTokenHash,
+      expiresAt: refreshExpiresAt,
+    },
+  });
+
   return {
     user: {
       id: user.id,
@@ -112,7 +131,100 @@ const loginUser = async (payload: ILoginUser) => {
   };
 };
 
+const refreshAccessToken = async (token: string) => {
+  const verifiedToken = jwtUtils.verifyToken(token, config.jwt_refresh_secret);
+
+  if (!verifiedToken.success) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Invalid or expired refresh token",
+    );
+  }
+
+  const decoded = verifiedToken.data as {
+    id: string;
+    email: string;
+    role: string;
+  };
+
+  const tokenHash = hashRefreshToken(token);
+
+  const session = await prisma.refreshSession.findUnique({
+    where: {
+      tokenHash,
+    },
+  });
+
+  if (!session) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Refresh session not found");
+  }
+
+  if (session.revokedAt) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Refresh token has been revoked",
+    );
+  }
+
+  if (session.expiresAt < new Date()) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token has expired");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: decoded.id,
+    },
+  });
+
+  if (!user || user.status !== "ACTIVE" || user.isDeleted) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "User account is not active");
+  }
+
+  const accessToken = jwtUtils.createToken(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions["expiresIn"],
+  );
+
+  return {
+    accessToken,
+  };
+};
+
+const logoutUser = async (token: string) => {
+  const tokenHash = hashRefreshToken(token);
+
+  const session = await prisma.refreshSession.findUnique({
+    where: {
+      tokenHash,
+    },
+  });
+
+  if (!session) {
+    throw new AppError(httpStatus.NOT_FOUND, "Refresh session not found");
+  }
+
+  if (session.revokedAt) {
+    throw new AppError(httpStatus.BAD_REQUEST, "User already logged out");
+  }
+
+  await prisma.refreshSession.update({
+    where: {
+      id: session.id,
+    },
+    data: {
+      revokedAt: new Date(),
+    },
+  });
+};
+
 export const authService = {
   registerUser,
   loginUser,
+  refreshAccessToken,
+  logoutUser,
 };

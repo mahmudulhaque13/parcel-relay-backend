@@ -23,10 +23,11 @@ import { courierRoutes } from "./app/module/courier/courier.route";
 import { pickupRoutes } from "./app/module/pickup/pickup.route";
 import { transferRoutes } from "./app/module/transfer/transfer.route";
 import { trackingRoutes } from "./app/module/tracking/tracking.route";
+import cookieParser from "cookie-parser";
 
 const app: Application = express();
 
-// Trust the platform proxy (Render) so client IPs / rate limiting work correctly.
+// Trust the platform proxy so client IPs / rate limiting work correctly.
 app.set("trust proxy", 1);
 
 // ---- Security middleware ----
@@ -52,6 +53,8 @@ app.post(
 // ---- Body parsing ----
 
 app.use(express.json({ limit: "1mb" }));
+
+app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
 

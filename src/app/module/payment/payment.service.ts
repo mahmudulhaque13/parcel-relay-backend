@@ -1,12 +1,12 @@
 import httpStatus from "http-status-codes";
+import Stripe from "stripe";
 
 import config from "../../config";
 import { prisma } from "../../lib/prisma";
 import { stripe } from "../../lib/stripe";
 import { AppError } from "../../utils/AppError";
-import Stripe from "stripe";
 
-import type { IInitiatePayment } from "./payment.interface";
+import type { IInitiatePayment, IRefundPayment } from "./payment.interface";
 
 const initiatePayment = async (
   customerId: string,
@@ -172,6 +172,152 @@ const paymentCancel = async () => {
   };
 };
 
+const refundPayment = async (adminId: string, payload: IRefundPayment) => {
+  // 1. Find the latest Stripe payment attempt for the shipment
+  const paymentAttempt = await prisma.paymentAttempt.findFirst({
+    where: {
+      shipmentId: payload.shipmentId,
+      method: "STRIPE",
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      shipment: true,
+    },
+  });
+
+  if (!paymentAttempt) {
+    throw new AppError(httpStatus.NOT_FOUND, "Stripe payment not found");
+  }
+
+  // 2. Prevent duplicate refund
+  if (paymentAttempt.status === "REFUNDED") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Shipment payment is already refunded",
+    );
+  }
+
+  // 3. Payment must be PAID before refund
+  if (paymentAttempt.status !== "PAID") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Stripe payment is not eligible for refund",
+    );
+  }
+
+  // 4. Only returned shipments can be refunded
+  if (paymentAttempt.shipment.status !== "RETURNED_TO_SENDER") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Only returned shipments can be refunded",
+    );
+  }
+
+  // 5. Get Stripe Payment Intent
+  const gatewayResponse = paymentAttempt.gatewayResponse as {
+    paymentIntentId?: string;
+    sessionId?: string;
+  } | null;
+
+  let paymentIntentId = gatewayResponse?.paymentIntentId;
+
+  if (!paymentIntentId) {
+    const sessionId = gatewayResponse?.sessionId;
+
+    if (!sessionId) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Stripe payment session information is missing",
+      );
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (!session.payment_intent) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Stripe payment intent not found",
+      );
+    }
+
+    paymentIntentId = session.payment_intent as string;
+  }
+
+  // 6. Create Stripe refund
+  const refund = await stripe.refunds.create({
+    payment_intent: paymentIntentId,
+    amount: Math.round(Number(paymentAttempt.amount) * 100),
+  });
+
+  // 7. Update database atomically
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedPaymentAttempt = await tx.paymentAttempt.update({
+      where: {
+        id: paymentAttempt.id,
+      },
+      data: {
+        status: "REFUNDED",
+        gatewayResponse: {
+          ...(paymentAttempt.gatewayResponse as object),
+          refundId: refund.id,
+          refundStatus: refund.status,
+          paymentIntentId,
+        },
+      },
+    });
+
+    const updatedShipment = await tx.shipment.update({
+      where: {
+        id: paymentAttempt.shipmentId,
+      },
+      data: {
+        paymentStatus: "REFUNDED",
+      },
+    });
+
+    // 8. Create shipment event
+    await tx.shipmentEvent.create({
+      data: {
+        shipmentId: updatedShipment.id,
+        status: updatedShipment.status,
+        description: "Shipment payment refunded through Stripe.",
+      },
+    });
+
+    // 9. Create audit log
+    await tx.auditLog.create({
+      data: {
+        userId: adminId,
+        action: "PAYMENT",
+        entityType: "Shipment",
+        entityId: updatedShipment.id,
+        description: "Shipment payment refunded through Stripe.",
+        metadata: {
+          paymentAttemptId: paymentAttempt.id,
+          transactionId: paymentAttempt.transactionId,
+          stripeRefundId: refund.id,
+          stripePaymentIntentId: paymentIntentId,
+        },
+      },
+    });
+
+    return {
+      paymentAttempt: updatedPaymentAttempt,
+      shipment: updatedShipment,
+    };
+  });
+
+  return {
+    refundId: refund.id,
+    refundStatus: refund.status,
+    amount: paymentAttempt.amount,
+    paymentStatus: result.shipment.paymentStatus,
+    shipmentStatus: result.shipment.status,
+  };
+};
+
 const handleWebhook = async (payload: Buffer, signature: string) => {
   if (!signature) {
     throw new AppError(httpStatus.BAD_REQUEST, "Stripe signature is missing");
@@ -330,5 +476,6 @@ export const paymentService = {
   initiatePayment,
   paymentSuccess,
   paymentCancel,
+  refundPayment,
   handleWebhook,
 };

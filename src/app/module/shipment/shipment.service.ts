@@ -177,13 +177,16 @@ const updateShipmentStatus = async (
     CANCELLED: [],
   };
 
-  if (!allowedTransitions[currentStatus].includes(nextStatus)) {
+  const allowedNextStatuses = allowedTransitions[currentStatus] ?? [];
+
+  if (!allowedNextStatuses.includes(nextStatus)) {
     throw new AppError(
       httpStatus.CONFLICT,
       `Invalid shipment status transition: ${currentStatus} -> ${nextStatus}`,
     );
   }
 
+  // Customer ownership
   if (actorRole === "CUSTOMER") {
     if (shipment.customerId !== actorId) {
       throw new AppError(
@@ -200,8 +203,19 @@ const updateShipmentStatus = async (
     }
   }
 
+  // Courier ownership
   if (actorRole === "COURIER") {
-    if (shipment.courierId !== actorId) {
+    const courier = await prisma.courierProfile.findUnique({
+      where: {
+        userId: actorId,
+      },
+    });
+
+    if (!courier) {
+      throw new AppError(httpStatus.FORBIDDEN, "Courier profile not found");
+    }
+
+    if (shipment.courierId !== courier.id) {
       throw new AppError(
         httpStatus.FORBIDDEN,
         "This shipment is not assigned to you",

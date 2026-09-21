@@ -17,6 +17,13 @@ router.post(
 
 router.get("/success", paymentController.paymentSuccess);
 
+router.post(
+  "/refund",
+  auth(UserRole.ADMIN),
+  validateRequest(paymentValidation.refundPaymentValidation),
+  paymentController.refundPayment,
+);
+
 router.get("/cancel", paymentController.paymentCancel);
 
 export const paymentRoutes = router;

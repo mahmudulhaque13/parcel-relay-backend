@@ -27,6 +27,16 @@ const paymentSuccess = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const refundPayment = catchAsync(async (req: Request, res: Response) => {
+  const result = await paymentService.refundPayment(req.user!.id, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Payment refunded successfully",
+    data: result,
+  });
+});
+
 const paymentCancel = catchAsync(async (_req: Request, res: Response) => {
   const result = await paymentService.paymentCancel();
 
@@ -57,4 +67,5 @@ export const paymentController = {
   paymentSuccess,
   paymentCancel,
   handleWebhook,
+  refundPayment,
 };

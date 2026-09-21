@@ -62,10 +62,24 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getPaymentStatus = catchAsync(async (req: Request, res: Response) => {
+  const result = await paymentService.getPaymentStatus(
+    req.params.shipmentId,
+    req.user!.id,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Payment status retrieved successfully",
+    data: result,
+  });
+});
+
 export const paymentController = {
   initiatePayment,
   paymentSuccess,
   paymentCancel,
   handleWebhook,
   refundPayment,
+  getPaymentStatus,
 };

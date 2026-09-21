@@ -172,6 +172,51 @@ const paymentCancel = async () => {
   };
 };
 
+const getPaymentStatus = async (shipmentId: string, customerId: string) => {
+  const shipment = await prisma.shipment.findFirst({
+    where: {
+      id: shipmentId,
+      customerId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      trackingNumber: true,
+      status: true,
+      paymentStatus: true,
+      deliveryCharge: true,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  const paymentAttempts = await prisma.paymentAttempt.findMany({
+    where: {
+      shipmentId,
+    },
+    select: {
+      id: true,
+      transactionId: true,
+      amount: true,
+      method: true,
+      status: true,
+      paidAt: true,
+      createdAt: true,
+      gatewayResponse: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return {
+    shipment,
+    payments: paymentAttempts,
+  };
+};
+
 const refundPayment = async (adminId: string, payload: IRefundPayment) => {
   // 1. Find the latest Stripe payment attempt for the shipment
   const paymentAttempt = await prisma.paymentAttempt.findFirst({
@@ -476,6 +521,7 @@ export const paymentService = {
   initiatePayment,
   paymentSuccess,
   paymentCancel,
+  getPaymentStatus,
   refundPayment,
   handleWebhook,
 };

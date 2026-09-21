@@ -20,6 +20,7 @@ import { shipmentRoutes } from "./app/module/shipment/shipment.route";
 import { paymentRoutes } from "./app/module/payment/payment.route";
 import { paymentController } from "./app/module/payment/payment.controller";
 import { courierRoutes } from "./app/module/courier/courier.route";
+import { pickupRoutes } from "./app/module/pickup/pickup.route";
 
 const app: Application = express();
 
@@ -81,6 +82,7 @@ app.use("/api/v1/pricing", pricingRoutes);
 app.use("/api/v1/shipments", shipmentRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/courier", courierRoutes);
+app.use("/api/v1/pickups", pickupRoutes);
 
 // ---- 404 + centralized error handling (must be last) ----
 

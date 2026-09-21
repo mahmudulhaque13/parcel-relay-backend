@@ -38,8 +38,24 @@ const getShipmentById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateShipmentStatus = catchAsync(async (req: Request, res: Response) => {
+  const result = await shipmentService.updateShipmentStatus(
+    req.params.id,
+    req.user!.id,
+    req.user!.role,
+    req.body,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Shipment status updated successfully",
+    data: result,
+  });
+});
+
 export const shipmentController = {
   createShipment,
   getMyShipments,
   getShipmentById,
+  updateShipmentStatus,
 };

@@ -19,4 +19,12 @@ router.get("/my", auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
 
 router.get("/:id", auth(UserRole.CUSTOMER), shipmentController.getShipmentById);
 
+// Shipment status transition
+router.patch(
+  "/:id/status",
+  auth(UserRole.CUSTOMER, UserRole.COURIER, UserRole.ADMIN),
+  validateRequest(shipmentValidation.updateShipmentStatusValidation),
+  shipmentController.updateShipmentStatus,
+);
+
 export const shipmentRoutes = router;

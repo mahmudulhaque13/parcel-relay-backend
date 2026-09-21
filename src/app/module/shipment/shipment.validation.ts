@@ -24,6 +24,31 @@ const createShipmentValidation = z.object({
   codAmount: z.number().nonnegative("COD amount cannot be negative"),
 });
 
+const updateShipmentStatusValidation = z.object({
+  body: z.object({
+    status: z.enum([
+      "PENDING_PAYMENT",
+      "READY_FOR_ASSIGNMENT",
+      "ASSIGNED",
+      "PICKUP_SCHEDULED",
+      "PICKED_UP",
+      "AT_ORIGIN_HUB",
+      "IN_TRANSIT",
+      "AT_DESTINATION_HUB",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "RETURN_INITIATED",
+      "RETURN_IN_TRANSIT",
+      "DELIVERED",
+      "RETURNED_TO_SENDER",
+      "CANCELLED",
+    ]),
+    note: z.string().max(500).optional(),
+    location: z.string().max(200).optional(),
+  }),
+});
+
 export const shipmentValidation = {
   createShipmentValidation,
+  updateShipmentStatusValidation,
 };

@@ -37,6 +37,12 @@ router.patch(
   shipmentController.updateShipment,
 );
 
+router.patch(
+  "/:id/cancel",
+  auth(UserRole.CUSTOMER),
+  shipmentController.cancelShipment,
+);
+
 router.delete(
   "/:id",
   auth(UserRole.CUSTOMER),

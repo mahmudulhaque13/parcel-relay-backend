@@ -222,6 +222,75 @@ const updateShipment = async (
   return result;
 };
 
+const cancelShipment = async (shipmentId: string, customerId: string) => {
+  const shipment = await prisma.shipment.findFirst({
+    where: {
+      id: shipmentId,
+      customerId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      customerId: true,
+      status: true,
+      paymentStatus: true,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  const cancellableStatuses = ["PENDING_PAYMENT", "READY_FOR_ASSIGNMENT"];
+
+  if (!cancellableStatuses.includes(shipment.status)) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Shipment cannot be cancelled in its current status",
+    );
+  }
+
+  if (shipment.paymentStatus !== "PENDING") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Paid shipment cannot be cancelled",
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedShipment = await tx.shipment.update({
+      where: {
+        id: shipmentId,
+      },
+      data: {
+        status: "CANCELLED",
+      },
+    });
+
+    await tx.shipmentEvent.create({
+      data: {
+        shipmentId,
+        status: "CANCELLED",
+        description: "Shipment cancelled by customer",
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        userId: customerId,
+        action: "STATUS_CHANGE",
+        entityType: "Shipment",
+        entityId: shipmentId,
+        description: "Shipment cancelled by customer",
+      },
+    });
+
+    return updatedShipment;
+  });
+
+  return result;
+};
+
 const createShipment = async (customerId: string, payload: ICreateShipment) => {
   const originZone = await prisma.zone.findUnique({
     where: {
@@ -561,4 +630,5 @@ export const shipmentService = {
   getShipmentById,
   updateShipmentStatus,
   deleteShipment,
+  cancelShipment,
 };

@@ -77,6 +77,19 @@ const updateShipment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const cancelShipment = catchAsync(async (req: Request, res: Response) => {
+  const result = await shipmentService.cancelShipment(
+    req.params.id,
+    req.user!.id,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Shipment cancelled successfully",
+    data: result,
+  });
+});
+
 const deleteShipment = catchAsync(async (req: Request, res: Response) => {
   const result = await shipmentService.deleteShipment(
     req.params.id,
@@ -98,4 +111,5 @@ export const shipmentController = {
   getShipmentById,
   updateShipmentStatus,
   deleteShipment,
+  cancelShipment,
 };

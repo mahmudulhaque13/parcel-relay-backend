@@ -4,14 +4,63 @@ import httpStatus from "http-status-codes";
 import { SignOptions } from "jsonwebtoken";
 
 import config from "../../config";
+import { googleClient } from "../../lib/googleAuth";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import { jwtUtils } from "../../utils/jwt";
 
-import type { ILoginUser, IRegisterUser } from "./auth.interface";
+import type {
+  IGoogleLoginPayload,
+  ILoginUser,
+  IRegisterUser,
+} from "./auth.interface";
 
 const hashRefreshToken = (token: string) => {
   return crypto.createHash("sha256").update(token).digest("hex");
+};
+
+const createRefreshSession = async (user: {
+  id: string;
+  email: string;
+  role: string;
+}) => {
+  const accessToken = jwtUtils.createToken(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions["expiresIn"],
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in as SignOptions["expiresIn"],
+  );
+
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+
+  const refreshExpiresAt = new Date();
+  refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7);
+
+  await prisma.refreshSession.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshTokenHash,
+      expiresAt: refreshExpiresAt,
+    },
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+  };
 };
 
 const registerUser = async (payload: IRegisterUser) => {
@@ -85,37 +134,10 @@ const loginUser = async (payload: ILoginUser) => {
     throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
   }
 
-  const accessToken = jwtUtils.createToken(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    config.jwt_access_secret,
-    config.jwt_access_expires_in as SignOptions["expiresIn"],
-  );
-
-  const refreshToken = jwtUtils.createToken(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    config.jwt_refresh_secret,
-    config.jwt_refresh_expires_in as SignOptions["expiresIn"],
-  );
-
-  const refreshTokenHash = hashRefreshToken(refreshToken);
-
-  const refreshExpiresAt = new Date();
-  refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7);
-
-  await prisma.refreshSession.create({
-    data: {
-      userId: user.id,
-      tokenHash: refreshTokenHash,
-      expiresAt: refreshExpiresAt,
-    },
+  const tokens = await createRefreshSession({
+    id: user.id,
+    email: user.email,
+    role: user.role,
   });
 
   return {
@@ -126,8 +148,115 @@ const loginUser = async (payload: ILoginUser) => {
       role: user.role,
       status: user.status,
     },
-    accessToken,
-    refreshToken,
+    ...tokens,
+  };
+};
+
+const googleLogin = async (payload: IGoogleLoginPayload) => {
+  const ticket = await googleClient.verifyIdToken({
+    idToken: payload.idToken,
+    audience: config.google_client_id,
+  });
+
+  const googlePayload = ticket.getPayload();
+
+  if (!googlePayload) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Google ID token");
+  }
+
+  const {
+    sub: googleId,
+    email,
+    email_verified: emailVerified,
+    name,
+    picture,
+  } = googlePayload;
+
+  if (!googleId || !email) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Google account information is incomplete",
+    );
+  }
+
+  if (!emailVerified) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Google email is not verified");
+  }
+
+  let user = await prisma.user.findUnique({
+    where: {
+      googleId,
+    },
+  });
+
+  if (!user) {
+    user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (user) {
+      if (user.googleId && user.googleId !== googleId) {
+        throw new AppError(
+          httpStatus.CONFLICT,
+          "This email is already linked with another Google account",
+        );
+      }
+
+      user = await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          googleId,
+          authProvider: "GOOGLE",
+          emailVerified: true,
+          ...(user.imageUrl || picture
+            ? {
+                imageUrl: user.imageUrl || picture,
+              }
+            : {}),
+        },
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          name: name || email.split("@")[0],
+          email,
+          googleId,
+          authProvider: "GOOGLE",
+          emailVerified: true,
+          ...(picture
+            ? {
+                imageUrl: picture,
+              }
+            : {}),
+          role: "CUSTOMER",
+        },
+      });
+    }
+  }
+
+  if (user.status !== "ACTIVE" || user.isDeleted) {
+    throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
+  }
+
+  const tokens = await createRefreshSession({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+  });
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+    },
+    ...tokens,
   };
 };
 
@@ -225,6 +354,7 @@ const logoutUser = async (token: string) => {
 export const authService = {
   registerUser,
   loginUser,
+  googleLogin,
   refreshAccessToken,
   logoutUser,
 };

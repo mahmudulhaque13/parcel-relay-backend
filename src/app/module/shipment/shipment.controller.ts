@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status-codes";
 
+import { shipmentValidation } from "./shipment.validation";
+
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { shipmentService } from "./shipment.service";
@@ -16,7 +18,9 @@ const createShipment = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyShipments = catchAsync(async (req: Request, res: Response) => {
-  const result = await shipmentService.getMyShipments(req.user!.id);
+  const query = shipmentValidation.shipmentQueryValidation.parse(req.query);
+
+  const result = await shipmentService.getMyShipments(req.user!.id, query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

@@ -84,9 +84,39 @@ const updateShipmentValidation = z.object({
   codAmount: z.number().nonnegative("COD amount cannot be negative").optional(),
 });
 
+const shipmentQueryValidation = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  status: z
+    .enum([
+      "PENDING_PAYMENT",
+      "READY_FOR_ASSIGNMENT",
+      "ASSIGNED",
+      "PICKUP_SCHEDULED",
+      "PICKED_UP",
+      "AT_ORIGIN_HUB",
+      "IN_TRANSIT",
+      "AT_DESTINATION_HUB",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "RETURN_INITIATED",
+      "RETURN_IN_TRANSIT",
+      "DELIVERED",
+      "RETURNED_TO_SENDER",
+      "CANCELLED",
+    ])
+    .optional(),
+  q: z.string().trim().optional(),
+  sortBy: z
+    .enum(["createdAt", "updatedAt", "deliveryCharge"])
+    .default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
 export const shipmentValidation = {
   createShipmentValidation,
   shipmentQuoteValidation,
   updateShipmentStatusValidation,
   updateShipmentValidation,
+  shipmentQueryValidation,
 };

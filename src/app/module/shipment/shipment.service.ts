@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import type {
   ICreateShipment,
+  IShipmentQuery,
   IShipmentQuote,
   IUpdateShipment,
   IUpdateShipmentStatus,
@@ -368,23 +369,71 @@ const createShipment = async (customerId: string, payload: ICreateShipment) => {
   return shipment;
 };
 
-const getMyShipments = async (customerId: string) => {
-  const shipments = await prisma.shipment.findMany({
-    where: {
-      customerId,
-      isDeleted: false,
-    },
-    include: {
-      originZone: true,
-      destinationZone: true,
-      pricingRule: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+const getMyShipments = async (customerId: string, query: IShipmentQuery) => {
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    q,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+  } = query;
 
-  return shipments;
+  const skip = (page - 1) * limit;
+
+  const where = {
+    customerId,
+    isDeleted: false,
+    ...(status && {
+      status,
+    }),
+    ...(q && {
+      OR: [
+        {
+          trackingNumber: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        },
+        {
+          recipientName: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        },
+      ],
+    }),
+  };
+
+  const [shipments, total] = await prisma.$transaction([
+    prisma.shipment.findMany({
+      where,
+      include: {
+        originZone: true,
+        destinationZone: true,
+        pricingRule: true,
+      },
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+
+    prisma.shipment.count({
+      where,
+    }),
+  ]);
+
+  return {
+    data: shipments,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
 };
 
 const getShipmentById = async (shipmentId: string, customerId: string) => {

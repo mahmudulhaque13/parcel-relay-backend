@@ -32,3 +32,12 @@ export interface IUpdateShipment {
   weight?: number;
   codAmount?: number;
 }
+
+export interface IShipmentQuery {
+  page?: number;
+  limit?: number;
+  status?: ShipmentStatus;
+  q?: string;
+  sortBy?: "createdAt" | "updatedAt" | "deliveryCharge";
+  sortOrder?: "asc" | "desc";
+}

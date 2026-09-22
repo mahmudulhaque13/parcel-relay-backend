@@ -25,6 +25,19 @@ const reassignCourier = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAdminUsers = catchAsync(async (req: Request, res: Response) => {
+  const query = adminValidation.adminUserQueryValidation.parse(req.query);
+
+  const result = await adminService.getAdminUsers(query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Admin users retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   reassignCourier,
+  getAdminUsers,
 };

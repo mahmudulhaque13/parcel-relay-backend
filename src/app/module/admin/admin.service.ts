@@ -2,7 +2,7 @@ import httpStatus from "http-status-codes";
 
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
-import type { IReassignCourier } from "./admin.interface";
+import type { IAdminUserQuery, IReassignCourier } from "./admin.interface";
 
 const reassignCourier = async (
   adminId: string,
@@ -114,6 +114,79 @@ const reassignCourier = async (
   return result;
 };
 
+const getAdminUsers = async (query: IAdminUserQuery) => {
+  const { page = 1, limit = 10, role, status, q, sortOrder = "desc" } = query;
+
+  const skip = (page - 1) * limit;
+
+  const where = {
+    ...(role && {
+      role,
+    }),
+
+    ...(status && {
+      status,
+    }),
+
+    ...(q && {
+      OR: [
+        {
+          name: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        },
+        {
+          email: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        },
+      ],
+    }),
+  };
+
+  const [users, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        authProvider: true,
+        emailVerified: true,
+        imageUrl: true,
+        isDeleted: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+
+    prisma.user.count({
+      where,
+    }),
+  ]);
+
+  return {
+    data: users,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
+};
+
 export const adminService = {
   reassignCourier,
+  getAdminUsers,
 };

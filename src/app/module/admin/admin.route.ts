@@ -15,4 +15,6 @@ router.post(
   adminController.reassignCourier,
 );
 
+router.get("/users", auth(UserRole.ADMIN), adminController.getAdminUsers);
+
 export const adminRoutes = router;

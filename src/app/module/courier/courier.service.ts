@@ -1,10 +1,15 @@
 import bcrypt from "bcryptjs";
 import httpStatus from "http-status-codes";
 
+import { ShipmentStatus } from "../../../generated/prisma/enums";
 import config from "../../config";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
-import type { IAssignCourier, ICreateCourier } from "./courier.interface";
+import type {
+  IAssignCourier,
+  ICreateCourier,
+  ICourierShipmentQuery,
+} from "./courier.interface";
 
 const createCourier = async (payload: ICreateCourier) => {
   const existingUser = await prisma.user.findUnique({
@@ -133,7 +138,83 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   return result;
 };
 
+const getCourierShipments = async (
+  courierUserId: string,
+  query: ICourierShipmentQuery,
+) => {
+  const { page = 1, limit = 10, status, q, sortOrder = "desc" } = query;
+
+  const courier = await prisma.courierProfile.findUnique({
+    where: {
+      userId: courierUserId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!courier) {
+    throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
+  }
+
+  const skip = (page - 1) * limit;
+
+  const where = {
+    courierId: courier.id,
+    isDeleted: false,
+    ...(status && {
+      status: status as ShipmentStatus,
+    }),
+    ...(q && {
+      OR: [
+        {
+          trackingNumber: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        },
+        {
+          recipientName: {
+            contains: q,
+            mode: "insensitive" as const,
+          },
+        },
+      ],
+    }),
+  };
+
+  const [shipments, total] = await prisma.$transaction([
+    prisma.shipment.findMany({
+      where,
+      include: {
+        originZone: true,
+        destinationZone: true,
+      },
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+
+    prisma.shipment.count({
+      where,
+    }),
+  ]);
+
+  return {
+    data: shipments,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
+};
+
 export const courierService = {
   createCourier,
   assignCourier,
+  getCourierShipments,
 };

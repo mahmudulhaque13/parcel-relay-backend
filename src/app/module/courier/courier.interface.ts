@@ -9,3 +9,11 @@ export interface IAssignCourier {
   shipmentId: string;
   courierId: string;
 }
+
+export interface ICourierShipmentQuery {
+  page?: number;
+  limit?: number;
+  status?: string;
+  q?: string;
+  sortOrder?: "asc" | "desc";
+}

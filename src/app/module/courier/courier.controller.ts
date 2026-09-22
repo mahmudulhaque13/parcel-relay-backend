@@ -4,6 +4,7 @@ import httpStatus from "http-status-codes";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { courierService } from "./courier.service";
+import { courierValidation } from "./courier.validation";
 
 const createCourier = catchAsync(async (req: Request, res: Response) => {
   const result = await courierService.createCourier(req.body);
@@ -27,7 +28,24 @@ const assignCourier = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getCourierShipments = catchAsync(async (req: Request, res: Response) => {
+  const courierId = req.user!.id;
+
+  const query = courierValidation.courierShipmentQueryValidation.parse(
+    req.query,
+  );
+
+  const result = await courierService.getCourierShipments(courierId, query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Courier shipments retrieved successfully",
+    data: result,
+  });
+});
+
 export const courierController = {
   createCourier,
   assignCourier,
+  getCourierShipments,
 };

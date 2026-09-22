@@ -1,16 +1,16 @@
-import type { Request, Response } from 'express';
-import httpStatus from 'http-status-codes';
+import type { Request, Response } from "express";
+import httpStatus from "http-status-codes";
 
-import { catchAsync } from '../../utils/catchAsync';
-import { sendResponse } from '../../utils/sendResponse';
-import { zoneService } from './zone.service';
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { zoneService } from "./zone.service";
 
 const createZone = catchAsync(async (req: Request, res: Response) => {
   const result = await zoneService.createZone(req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
-    message: 'Zone created successfully',
+    message: "Zone created successfully",
     data: result,
   });
 });
@@ -20,17 +20,20 @@ const getAllZones = catchAsync(async (_req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Zones retrieved successfully',
+    message: "Zones retrieved successfully",
     data: result,
   });
 });
 
 const updateZone = catchAsync(async (req: Request, res: Response) => {
-  const result = await zoneService.updateZone(req.params.id as string, req.body);
+  const result = await zoneService.updateZone(
+    req.params.id as string,
+    req.body,
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Zone updated successfully',
+    message: "Zone updated successfully",
     data: result,
   });
 });
@@ -40,7 +43,17 @@ const deactivateZone = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Zone deactivated successfully',
+    message: "Zone deactivated successfully",
+    data: result,
+  });
+});
+
+const deleteZone = catchAsync(async (req: Request, res: Response) => {
+  const result = await zoneService.deleteZone(req.params.id as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Zone deleted successfully",
     data: result,
   });
 });
@@ -50,4 +63,5 @@ export const zoneController = {
   getAllZones,
   updateZone,
   deactivateZone,
+  deleteZone,
 };

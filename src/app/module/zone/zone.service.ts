@@ -1,8 +1,8 @@
-import httpStatus from 'http-status-codes';
+import httpStatus from "http-status-codes";
 
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../utils/AppError';
-import type { ICreateZone, IUpdateZone } from './zone.interface';
+import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/AppError";
+import type { ICreateZone, IUpdateZone } from "./zone.interface";
 
 const createZone = async (payload: ICreateZone) => {
   const existingZone = await prisma.zone.findUnique({
@@ -12,7 +12,10 @@ const createZone = async (payload: ICreateZone) => {
   });
 
   if (existingZone) {
-    throw new AppError(httpStatus.CONFLICT, 'Zone with this code already exists');
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Zone with this code already exists",
+    );
   }
 
   const zone = await prisma.zone.create({
@@ -30,9 +33,10 @@ const getAllZones = async () => {
   const zones = await prisma.zone.findMany({
     where: {
       isActive: true,
+      isDeleted: false,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 
@@ -40,14 +44,15 @@ const getAllZones = async () => {
 };
 
 const updateZone = async (zoneId: string, payload: IUpdateZone) => {
-  const existingZone = await prisma.zone.findUnique({
+  const existingZone = await prisma.zone.findFirst({
     where: {
       id: zoneId,
+      isDeleted: false,
     },
   });
 
   if (!existingZone) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Zone not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Zone not found");
   }
 
   if (payload.code && payload.code !== existingZone.code) {
@@ -58,7 +63,10 @@ const updateZone = async (zoneId: string, payload: IUpdateZone) => {
     });
 
     if (existingCode) {
-      throw new AppError(httpStatus.CONFLICT, 'Zone with this code already exists');
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Zone with this code already exists",
+      );
     }
   }
 
@@ -80,11 +88,11 @@ const deactivateZone = async (zoneId: string) => {
   });
 
   if (!existingZone) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Zone not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Zone not found");
   }
 
   if (!existingZone.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Zone is already inactive');
+    throw new AppError(httpStatus.BAD_REQUEST, "Zone is already inactive");
   }
 
   const zone = await prisma.zone.update({
@@ -99,9 +107,36 @@ const deactivateZone = async (zoneId: string) => {
   return zone;
 };
 
+const deleteZone = async (zoneId: string) => {
+  const existingZone = await prisma.zone.findFirst({
+    where: {
+      id: zoneId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingZone) {
+    throw new AppError(httpStatus.NOT_FOUND, "Zone not found");
+  }
+
+  const zone = await prisma.zone.update({
+    where: {
+      id: zoneId,
+    },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+      isActive: false,
+    },
+  });
+
+  return zone;
+};
+
 export const zoneService = {
   createZone,
   getAllZones,
   updateZone,
   deactivateZone,
+  deleteZone,
 };

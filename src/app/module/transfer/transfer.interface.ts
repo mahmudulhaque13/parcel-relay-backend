@@ -1,5 +1,4 @@
 export interface ICreateTransfer {
-  shipmentId: string;
   fromHubId: string;
   toHubId: string;
 }

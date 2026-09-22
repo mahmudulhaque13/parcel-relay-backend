@@ -34,7 +34,11 @@ router.get(
   shipmentController.getShipmentTimeline,
 );
 
-router.get("/:id", auth(UserRole.CUSTOMER), shipmentController.getShipmentById);
+router.get(
+  "/:id",
+  auth(UserRole.CUSTOMER, UserRole.COURIER, UserRole.ADMIN),
+  shipmentController.getShipmentById,
+);
 
 router.patch(
   "/:id",

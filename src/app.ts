@@ -90,7 +90,7 @@ app.use("/api/v1/shipments", shipmentRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/courier", courierRoutes);
 app.use("/api/v1", pickupRoutes);
-app.use("/api/v1/transfers", transferRoutes);
+app.use("/api/v1", transferRoutes);
 app.use("/api/v1/tracking", trackingRoutes);
 app.use("/api/v1/admin", adminRoutes);
 

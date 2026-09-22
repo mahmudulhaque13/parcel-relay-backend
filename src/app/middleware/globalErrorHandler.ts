@@ -1,7 +1,11 @@
 import type { ErrorRequestHandler } from "express";
+
 import { ZodError } from "zod";
+
 import config from "../config";
+
 import type { TErrorSource } from "../interfaces/error.interface";
+
 import { AppError } from "../utils/AppError";
 
 export const globalErrorHandler: ErrorRequestHandler = (
@@ -17,6 +21,7 @@ export const globalErrorHandler: ErrorRequestHandler = (
   if (err instanceof ZodError) {
     statusCode = 400;
     message = "Validation error";
+
     errors = err.issues.map((issue) => ({
       path: issue.path.join(".") || "(root)",
       message: issue.message,
@@ -24,6 +29,7 @@ export const globalErrorHandler: ErrorRequestHandler = (
   } else if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+
     errors = [{ path: "", message: err.message }];
   } else if (err instanceof Error) {
     message = err.message || message;
@@ -43,8 +49,5 @@ export const globalErrorHandler: ErrorRequestHandler = (
     success: false,
     message,
     errors,
-    ...(config.node_env === "production"
-      ? {}
-      : { stack: err instanceof Error ? err.stack : undefined }),
   });
 };

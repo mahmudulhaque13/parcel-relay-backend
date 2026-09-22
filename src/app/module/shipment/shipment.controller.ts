@@ -33,6 +33,7 @@ const getShipmentById = catchAsync(async (req: Request, res: Response) => {
   const result = await shipmentService.getShipmentById(
     req.params.id,
     req.user!.id,
+    req.user!.role,
   );
 
   sendResponse(res, {

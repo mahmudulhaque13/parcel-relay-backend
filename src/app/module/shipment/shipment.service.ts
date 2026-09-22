@@ -10,6 +10,8 @@ import type {
   IUpdateShipmentStatus,
 } from "./shipment.interface";
 
+import { UserRole } from "../../../generated/prisma/enums";
+
 const generateTrackingNumber = () => {
   const timestamp = Date.now();
   const randomNumber = Math.floor(1000 + Math.random() * 9000);
@@ -436,13 +438,40 @@ const getMyShipments = async (customerId: string, query: IShipmentQuery) => {
   };
 };
 
-const getShipmentById = async (shipmentId: string, customerId: string) => {
+const getShipmentById = async (
+  shipmentId: string,
+  userId: string,
+  role: UserRole,
+) => {
+  const where: {
+    id: string;
+    isDeleted: boolean;
+    customerId?: string;
+    courierId?: string;
+  } = {
+    id: shipmentId,
+    isDeleted: false,
+  };
+
+  if (role === UserRole.CUSTOMER) {
+    where.customerId = userId;
+  }
+
+  if (role === UserRole.COURIER) {
+    const courier = await prisma.courierProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!courier) {
+      throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
+    }
+
+    where.courierId = courier.id;
+  }
+
   const shipment = await prisma.shipment.findFirst({
-    where: {
-      id: shipmentId,
-      customerId,
-      isDeleted: false,
-    },
+    where,
     include: {
       originZone: true,
       destinationZone: true,
@@ -456,7 +485,12 @@ const getShipmentById = async (shipmentId: string, customerId: string) => {
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      role === UserRole.COURIER
+        ? "Shipment not found or not assigned to you"
+        : "Shipment not found",
+    );
   }
 
   return shipment;

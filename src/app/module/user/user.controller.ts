@@ -1,6 +1,5 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status-codes";
-
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { userService } from "./user.service";
@@ -15,6 +14,28 @@ const getAllUsers = catchAsync(async (_req: Request, res: Response) => {
   });
 });
 
+const getMyProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getMyProfile(req.user!.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Profile retrieved successfully",
+    data: result,
+  });
+});
+
+const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.updateMyProfile(req.user!.id, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Profile updated successfully",
+    data: result,
+  });
+});
+
 export const userController = {
   getAllUsers,
+  getMyProfile,
+  updateMyProfile,
 };

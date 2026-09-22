@@ -22,8 +22,13 @@ const updateUserRoleValidation = z.object({
   phone: z.string().min(7, "Invalid phone number").optional(),
 });
 
+const updateUserStatusValidation = z.object({
+  status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED", "DELETED"]),
+});
+
 export const adminValidation = {
   reassignCourierValidation,
   adminUserQueryValidation,
   updateUserRoleValidation,
+  updateUserStatusValidation,
 };

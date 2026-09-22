@@ -6,6 +6,7 @@ import type {
   IAdminUserQuery,
   IReassignCourier,
   IUpdateUserRole,
+  IUpdateUserStatus,
 } from "./admin.interface";
 
 const reassignCourier = async (
@@ -305,9 +306,85 @@ const updateUserRole = async (
   return result;
 };
 
+const updateUserStatus = async (
+  adminId: string,
+  userId: string,
+  payload: IUpdateUserStatus,
+) => {
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  if (user.status === payload.status) {
+    throw new AppError(httpStatus.CONFLICT, "User already has this status");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedUser = await tx.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        status: payload.status,
+        ...(payload.status === "DELETED"
+          ? {
+              isDeleted: true,
+              deletedAt: new Date(),
+            }
+          : {
+              isDeleted: false,
+              deletedAt: null,
+            }),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        isDeleted: true,
+        deletedAt: true,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        userId: adminId,
+        action: "UPDATE",
+        entityType: "User",
+        entityId: userId,
+        description: `User status changed from ${user.status} to ${payload.status}`,
+        metadata: {
+          previousStatus: user.status,
+          newStatus: payload.status,
+        },
+      },
+    });
+
+    return updatedUser;
+  });
+
+  return result;
+};
+
 export const adminService = {
   reassignCourier,
   getAdminUsers,
   getAdminUserById,
   updateUserRole,
+  updateUserStatus,
 };

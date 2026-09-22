@@ -30,4 +30,11 @@ router.patch(
   adminController.updateUserRole,
 );
 
+router.patch(
+  "/users/:id/status",
+  auth(UserRole.ADMIN),
+  validateRequest(adminValidation.updateUserStatusValidation),
+  adminController.updateUserStatus,
+);
+
 export const adminRoutes = router;

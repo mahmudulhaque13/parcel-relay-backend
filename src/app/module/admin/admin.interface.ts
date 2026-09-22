@@ -15,3 +15,7 @@ export interface IUpdateUserRole {
   role: "CUSTOMER" | "COURIER" | "ADMIN";
   phone?: string;
 }
+
+export interface IUpdateUserStatus {
+  status: "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
+}

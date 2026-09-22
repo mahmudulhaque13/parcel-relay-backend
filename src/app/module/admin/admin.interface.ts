@@ -19,3 +19,13 @@ export interface IUpdateUserRole {
 export interface IUpdateUserStatus {
   status: "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
 }
+
+export interface IAuditLogQuery {
+  page?: number;
+  limit?: number;
+  action?: string;
+  entityType?: string;
+  userId?: string;
+  q?: string;
+  sortOrder?: "asc" | "desc";
+}

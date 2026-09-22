@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import type {
   IAdminUserQuery,
+  IAuditLogQuery,
   IReassignCourier,
   IUpdateUserRole,
   IUpdateUserStatus,
@@ -381,10 +382,104 @@ const updateUserStatus = async (
   return result;
 };
 
+const getAuditLogs = async (query: IAuditLogQuery) => {
+  const {
+    page = 1,
+    limit = 10,
+    action,
+    entityType,
+    userId,
+    q,
+    sortOrder = "desc",
+  } = query;
+
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    ...(action ? { action: action as any } : {}),
+    ...(entityType
+      ? {
+          entityType: {
+            contains: entityType,
+            mode: "insensitive",
+          },
+        }
+      : {}),
+    ...(userId ? { userId } : {}),
+    ...(q
+      ? {
+          OR: [
+            {
+              description: {
+                contains: q,
+                mode: "insensitive",
+              },
+            },
+            {
+              entityType: {
+                contains: q,
+                mode: "insensitive",
+              },
+            },
+            {
+              entityId: {
+                contains: q,
+                mode: "insensitive",
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const [logs, total] = await prisma.$transaction([
+    prisma.auditLog.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      select: {
+        id: true,
+        userId: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        description: true,
+        metadata: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.auditLog.count({
+      where,
+    }),
+  ]);
+
+  return {
+    data: logs,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
+};
+
 export const adminService = {
   reassignCourier,
   getAdminUsers,
   getAdminUserById,
   updateUserRole,
   updateUserStatus,
+  getAuditLogs,
 };

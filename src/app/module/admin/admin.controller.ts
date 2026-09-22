@@ -79,10 +79,23 @@ const updateUserStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getAuditLogs = catchAsync(async (req, res) => {
+  const query = adminValidation.auditLogQueryValidation.parse(req.query);
+
+  const result = await adminService.getAuditLogs(query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Audit logs retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   reassignCourier,
   getAdminUsers,
   getAdminUserById,
   updateUserRole,
   updateUserStatus,
+  getAuditLogs,
 };

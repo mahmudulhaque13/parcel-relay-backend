@@ -26,9 +26,20 @@ const updateUserStatusValidation = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED", "DELETED"]),
 });
 
+const auditLogQueryValidation = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  action: z.string().trim().optional(),
+  entityType: z.string().trim().optional(),
+  userId: z.string().uuid("Invalid user ID").optional(),
+  q: z.string().trim().optional(),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
 export const adminValidation = {
   reassignCourierValidation,
   adminUserQueryValidation,
   updateUserRoleValidation,
   updateUserStatusValidation,
+  auditLogQueryValidation,
 };

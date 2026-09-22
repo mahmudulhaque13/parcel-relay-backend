@@ -23,6 +23,8 @@ import { courierRoutes } from "./app/module/courier/courier.route";
 import { pickupRoutes } from "./app/module/pickup/pickup.route";
 import { transferRoutes } from "./app/module/transfer/transfer.route";
 import { trackingRoutes } from "./app/module/tracking/tracking.route";
+import { adminRoutes } from "./app/module/admin/admin.route";
+
 import cookieParser from "cookie-parser";
 
 const app: Application = express();
@@ -90,6 +92,7 @@ app.use("/api/v1/courier", courierRoutes);
 app.use("/api/v1/pickups", pickupRoutes);
 app.use("/api/v1/transfers", transferRoutes);
 app.use("/api/v1/tracking", trackingRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 // ---- 404 + centralized error handling (must be last) ----
 

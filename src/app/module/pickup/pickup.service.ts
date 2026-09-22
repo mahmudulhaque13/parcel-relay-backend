@@ -2,13 +2,19 @@ import httpStatus from "http-status-codes";
 
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
+
 import type { ICreatePickup, IUpdatePickupStatus } from "./pickup.interface";
 
-const createPickup = async (customerId: string, payload: ICreatePickup) => {
+const createPickup = async (
+  customerId: string,
+  shipmentId: string,
+  payload: ICreatePickup,
+) => {
   const shipment = await prisma.shipment.findFirst({
     where: {
-      id: payload.shipmentId,
+      id: shipmentId,
       customerId,
+      isDeleted: false,
     },
   });
 
@@ -18,7 +24,7 @@ const createPickup = async (customerId: string, payload: ICreatePickup) => {
 
   const existingPickup = await prisma.pickupRequest.findUnique({
     where: {
-      shipmentId: payload.shipmentId,
+      shipmentId,
     },
   });
 
@@ -52,7 +58,7 @@ const createPickup = async (customerId: string, payload: ICreatePickup) => {
   const result = await prisma.$transaction(async (tx) => {
     const pickup = await tx.pickupRequest.create({
       data: {
-        shipmentId: payload.shipmentId,
+        shipmentId,
         pickupDate,
         notes: payload.notes,
         status: "SCHEDULED",
@@ -61,8 +67,9 @@ const createPickup = async (customerId: string, payload: ICreatePickup) => {
 
     const updatedShipment = await tx.shipment.updateMany({
       where: {
-        id: payload.shipmentId,
+        id: shipmentId,
         status: "ASSIGNED",
+        isDeleted: false,
       },
       data: {
         status: "PICKUP_SCHEDULED",
@@ -78,7 +85,7 @@ const createPickup = async (customerId: string, payload: ICreatePickup) => {
 
     const shipmentEvent = await tx.shipmentEvent.create({
       data: {
-        shipmentId: payload.shipmentId,
+        shipmentId,
         status: "PICKUP_SCHEDULED",
         description: "Pickup scheduled successfully",
       },
@@ -89,7 +96,7 @@ const createPickup = async (customerId: string, payload: ICreatePickup) => {
         userId: customerId,
         action: "STATUS_CHANGE",
         entityType: "Shipment",
-        entityId: payload.shipmentId,
+        entityId: shipmentId,
         description: "Pickup scheduled for shipment",
         metadata: {
           pickupRequestId: pickup.id,
@@ -109,12 +116,12 @@ const createPickup = async (customerId: string, payload: ICreatePickup) => {
 
 const updatePickupStatus = async (
   actorId: string,
-  pickupId: string,
+  shipmentId: string,
   payload: IUpdatePickupStatus,
 ) => {
   const pickup = await prisma.pickupRequest.findUnique({
     where: {
-      id: pickupId,
+      shipmentId,
     },
     include: {
       shipment: true,
@@ -125,7 +132,9 @@ const updatePickupStatus = async (
     throw new AppError(httpStatus.NOT_FOUND, "Pickup request not found");
   }
 
-  const shipment = pickup.shipment;
+  if (pickup.shipment.isDeleted) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
 
   const courier = await prisma.courierProfile.findUnique({
     where: {
@@ -133,7 +142,7 @@ const updatePickupStatus = async (
     },
   });
 
-  const isAssignedCourier = courier && shipment.courierId === courier.id;
+  const isAssignedCourier = courier && pickup.shipment.courierId === courier.id;
 
   if (!isAssignedCourier) {
     throw new AppError(
@@ -162,7 +171,7 @@ const updatePickupStatus = async (
   const result = await prisma.$transaction(async (tx) => {
     const updatedPickup = await tx.pickupRequest.updateMany({
       where: {
-        id: pickupId,
+        id: pickup.id,
         status: pickup.status,
       },
       data: {
@@ -181,8 +190,9 @@ const updatePickupStatus = async (
     if (payload.status === "PICKED_UP") {
       const updatedShipment = await tx.shipment.updateMany({
         where: {
-          id: shipment.id,
+          id: shipmentId,
           status: "PICKUP_SCHEDULED",
+          isDeleted: false,
         },
         data: {
           status: "PICKED_UP",
@@ -198,7 +208,7 @@ const updatePickupStatus = async (
 
       await tx.shipmentEvent.create({
         data: {
-          shipmentId: shipment.id,
+          shipmentId,
           status: "PICKED_UP",
           description: payload.notes || "Shipment picked up successfully",
         },
@@ -210,27 +220,94 @@ const updatePickupStatus = async (
         userId: actorId,
         action: "STATUS_CHANGE",
         entityType: "PickupRequest",
-        entityId: pickupId,
+        entityId: pickup.id,
         description: `Pickup status changed from ${pickup.status} to ${payload.status}`,
         metadata: {
-          shipmentId: shipment.id,
+          shipmentId,
         },
       },
     });
 
-    const pickupResult = await tx.pickupRequest.findUnique({
+    return tx.pickupRequest.findUnique({
       where: {
-        id: pickupId,
+        id: pickup.id,
       },
     });
-
-    return pickupResult;
   });
 
   return result;
 };
 
+const getPickup = async (actorId: string, shipmentId: string) => {
+  const shipment = await prisma.shipment.findFirst({
+    where: {
+      id: shipmentId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      customerId: true,
+      courierId: true,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: actorId,
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "User not found");
+  }
+
+  if (user.role === "CUSTOMER" && shipment.customerId !== actorId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You don't have permission to access this pickup",
+    );
+  }
+
+  if (user.role === "COURIER") {
+    const courier = await prisma.courierProfile.findUnique({
+      where: {
+        userId: actorId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!courier || shipment.courierId !== courier.id) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You are not assigned to this shipment",
+      );
+    }
+  }
+
+  const pickup = await prisma.pickupRequest.findUnique({
+    where: {
+      shipmentId,
+    },
+  });
+
+  if (!pickup) {
+    throw new AppError(httpStatus.NOT_FOUND, "Pickup request not found");
+  }
+
+  return pickup;
+};
+
 export const pickupService = {
   createPickup,
   updatePickupStatus,
+  getPickup,
 };

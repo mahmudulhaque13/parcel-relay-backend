@@ -1,5 +1,4 @@
 export interface ICreatePickup {
-  shipmentId: string;
   pickupDate: string;
   notes?: string;
 }

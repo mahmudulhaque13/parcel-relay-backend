@@ -1,8 +1,8 @@
-import httpStatus from 'http-status-codes';
+import httpStatus from "http-status-codes";
 
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../utils/AppError';
-import type { ICreateHub, IUpdateHub } from './hub.interface';
+import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/AppError";
+import type { ICreateHub, IUpdateHub } from "./hub.interface";
 
 const createHub = async (payload: ICreateHub) => {
   const existingHub = await prisma.hub.findUnique({
@@ -12,7 +12,10 @@ const createHub = async (payload: ICreateHub) => {
   });
 
   if (existingHub) {
-    throw new AppError(httpStatus.CONFLICT, 'Hub with this code already exists');
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Hub with this code already exists",
+    );
   }
 
   const zone = await prisma.zone.findUnique({
@@ -22,11 +25,14 @@ const createHub = async (payload: ICreateHub) => {
   });
 
   if (!zone) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Zone not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Zone not found");
   }
 
   if (!zone.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Cannot create hub under an inactive zone');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Cannot create hub under an inactive zone",
+    );
   }
 
   const hub = await prisma.hub.create({
@@ -45,12 +51,13 @@ const getAllHubs = async () => {
   const hubs = await prisma.hub.findMany({
     where: {
       isActive: true,
+      isDeleted: false,
     },
     include: {
       zone: true,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 
@@ -58,14 +65,15 @@ const getAllHubs = async () => {
 };
 
 const updateHub = async (hubId: string, payload: IUpdateHub) => {
-  const existingHub = await prisma.hub.findUnique({
+  const existingHub = await prisma.hub.findFirst({
     where: {
       id: hubId,
+      isDeleted: false,
     },
   });
 
   if (!existingHub) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Hub not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Hub not found");
   }
 
   if (payload.code && payload.code !== existingHub.code) {
@@ -76,7 +84,10 @@ const updateHub = async (hubId: string, payload: IUpdateHub) => {
     });
 
     if (existingCode) {
-      throw new AppError(httpStatus.CONFLICT, 'Hub with this code already exists');
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Hub with this code already exists",
+      );
     }
   }
 
@@ -88,11 +99,14 @@ const updateHub = async (hubId: string, payload: IUpdateHub) => {
     });
 
     if (!zone) {
-      throw new AppError(httpStatus.NOT_FOUND, 'Zone not found');
+      throw new AppError(httpStatus.NOT_FOUND, "Zone not found");
     }
 
     if (!zone.isActive) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Cannot move hub to an inactive zone');
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Cannot move hub to an inactive zone",
+      );
     }
   }
 
@@ -114,11 +128,11 @@ const deactivateHub = async (hubId: string) => {
   });
 
   if (!existingHub) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Hub not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Hub not found");
   }
 
   if (!existingHub.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Hub is already inactive');
+    throw new AppError(httpStatus.BAD_REQUEST, "Hub is already inactive");
   }
 
   const hub = await prisma.hub.update({
@@ -133,9 +147,55 @@ const deactivateHub = async (hubId: string) => {
   return hub;
 };
 
+const getHubById = async (hubId: string) => {
+  const hub = await prisma.hub.findFirst({
+    where: {
+      id: hubId,
+      isDeleted: false,
+    },
+    include: {
+      zone: true,
+    },
+  });
+
+  if (!hub) {
+    throw new AppError(httpStatus.NOT_FOUND, "Hub not found");
+  }
+
+  return hub;
+};
+
+const deleteHub = async (hubId: string) => {
+  const existingHub = await prisma.hub.findFirst({
+    where: {
+      id: hubId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingHub) {
+    throw new AppError(httpStatus.NOT_FOUND, "Hub not found");
+  }
+
+  const hub = await prisma.hub.update({
+    where: {
+      id: hubId,
+    },
+    data: {
+      isActive: false,
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+  });
+
+  return hub;
+};
+
 export const hubService = {
   createHub,
   getAllHubs,
+  getHubById,
   updateHub,
   deactivateHub,
+  deleteHub,
 };

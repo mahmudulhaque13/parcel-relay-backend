@@ -1,33 +1,50 @@
-import { Router } from 'express';
+import { Router } from "express";
 
-import { UserRole } from '../../../generated/prisma/enums';
+import { UserRole } from "../../../generated/prisma/enums";
 
-import { auth } from '../../middleware/checkAuth';
+import { auth } from "../../middleware/checkAuth";
 
-import { validateRequest } from '../../middleware/validateRequest';
+import { validateRequest } from "../../middleware/validateRequest";
 
-import { courierController } from './courier.controller';
+import { shipmentController } from "../shipment/shipment.controller";
 
-import { courierValidation } from './courier.validation';
+import { courierController } from "./courier.controller";
+
+import { courierValidation } from "./courier.validation";
 
 const router = Router();
 
 router.post(
-  '/',
+  "/",
   auth(UserRole.ADMIN),
   validateRequest(courierValidation.createCourierValidation),
   courierController.createCourier,
 );
 
 router.post(
-  '/assign',
+  "/assign",
   auth(UserRole.ADMIN),
   validateRequest(courierValidation.assignCourierValidation),
   courierController.assignCourier,
 );
 
-router.get('/shipments/:id', auth(UserRole.COURIER), courierController.getCourierShipmentById);
+router.patch(
+  "/shipments/:id/status",
+  auth(UserRole.COURIER),
+  validateRequest(courierValidation.updateShipmentStatusValidation),
+  shipmentController.updateShipmentStatus,
+);
 
-router.get('/shipments', auth(UserRole.COURIER), courierController.getCourierShipments);
+router.get(
+  "/shipments/:id",
+  auth(UserRole.COURIER),
+  courierController.getCourierShipmentById,
+);
+
+router.get(
+  "/shipments",
+  auth(UserRole.COURIER),
+  courierController.getCourierShipments,
+);
 
 export const courierRoutes = router;

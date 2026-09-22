@@ -40,29 +40,27 @@ const courierShipmentQueryValidation = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-const updateShipmentStatusValidation = z.object({
-  body: z
-    .object({
-      status: z.enum([
-        "PENDING_PAYMENT",
-        "READY_FOR_ASSIGNMENT",
-        "ASSIGNED",
-        "PICKUP_SCHEDULED",
-        "PICKED_UP",
-        "AT_ORIGIN_HUB",
-        "IN_TRANSIT",
-        "AT_DESTINATION_HUB",
-        "OUT_FOR_DELIVERY",
-        "DELIVERY_FAILED",
-        "RETURN_INITIATED",
-        "RETURN_IN_TRANSIT",
-        "DELIVERED",
-        "RETURNED_TO_SENDER",
-        "CANCELLED",
-      ]),
-    })
-    .strict(),
-});
+const updateShipmentStatusValidation = z
+  .object({
+    status: z.enum([
+      "PENDING_PAYMENT",
+      "READY_FOR_ASSIGNMENT",
+      "ASSIGNED",
+      "PICKUP_SCHEDULED",
+      "PICKED_UP",
+      "AT_ORIGIN_HUB",
+      "IN_TRANSIT",
+      "AT_DESTINATION_HUB",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "RETURN_INITIATED",
+      "RETURN_IN_TRANSIT",
+      "DELIVERED",
+      "RETURNED_TO_SENDER",
+      "CANCELLED",
+    ]),
+  })
+  .strict();
 
 export const courierValidation = {
   assignCourierValidation,

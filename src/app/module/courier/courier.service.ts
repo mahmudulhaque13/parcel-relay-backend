@@ -213,8 +213,59 @@ const getCourierShipments = async (
   };
 };
 
+const getCourierShipmentById = async (
+  courierUserId: string,
+  shipmentId: string,
+) => {
+  const courier = await prisma.courierProfile.findUnique({
+    where: {
+      userId: courierUserId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!courier) {
+    throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
+  }
+
+  const shipment = await prisma.shipment.findFirst({
+    where: {
+      id: shipmentId,
+      courierId: courier.id,
+      isDeleted: false,
+    },
+    include: {
+      originZone: true,
+      destinationZone: true,
+      pickupRequest: true,
+      transfers: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+      events: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "Shipment not found or not assigned to you",
+    );
+  }
+
+  return shipment;
+};
+
 export const courierService = {
   createCourier,
   assignCourier,
   getCourierShipments,
+  getCourierShipmentById,
 };

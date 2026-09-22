@@ -44,8 +44,24 @@ const getCourierShipments = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getCourierShipmentById = catchAsync(
+  async (req: Request, res: Response) => {
+    const courierId = req.user!.id;
+    const { id } = req.params;
+
+    const result = await courierService.getCourierShipmentById(courierId, id);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Courier shipment retrieved successfully",
+      data: result,
+    });
+  },
+);
+
 export const courierController = {
   createCourier,
   assignCourier,
   getCourierShipments,
+  getCourierShipmentById,
 };

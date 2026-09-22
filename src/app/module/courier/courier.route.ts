@@ -27,6 +27,12 @@ router.post(
 );
 
 router.get(
+  "/shipments/:id",
+  auth(UserRole.COURIER),
+  courierController.getCourierShipmentById,
+);
+
+router.get(
   "/shipments",
   auth(UserRole.COURIER),
   courierController.getCourierShipments,

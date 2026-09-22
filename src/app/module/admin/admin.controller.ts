@@ -91,6 +91,16 @@ const getAuditLogs = catchAsync(async (req, res) => {
   });
 });
 
+const getDashboardStats = catchAsync(async (_req, res) => {
+  const result = await adminService.getDashboardStats();
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Dashboard statistics retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   reassignCourier,
   getAdminUsers,
@@ -98,4 +108,5 @@ export const adminController = {
   updateUserRole,
   updateUserStatus,
   getAuditLogs,
+  getDashboardStats,
 };

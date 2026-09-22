@@ -39,4 +39,10 @@ router.patch(
 
 router.get("/audit-logs", auth(UserRole.ADMIN), adminController.getAuditLogs);
 
+router.get(
+  "/dashboard-stats",
+  auth(UserRole.ADMIN),
+  adminController.getDashboardStats,
+);
+
 export const adminRoutes = router;

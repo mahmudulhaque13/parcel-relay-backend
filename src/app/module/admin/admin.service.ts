@@ -475,6 +475,197 @@ const getAuditLogs = async (query: IAuditLogQuery) => {
   };
 };
 
+const getDashboardStats = async () => {
+  const [
+    totalUsers,
+    customers,
+    couriers,
+    admins,
+
+    totalShipments,
+    pendingPayment,
+    readyForAssignment,
+    inTransit,
+    delivered,
+    cancelled,
+    returned,
+
+    totalPayments,
+    paidPayments,
+    pendingPayments,
+    failedPayments,
+    refundedPayments,
+
+    totalCouriers,
+    availableCouriers,
+    unavailableCouriers,
+  ] = await Promise.all([
+    // Users
+    prisma.user.count({
+      where: {
+        isDeleted: false,
+      },
+    }),
+
+    prisma.user.count({
+      where: {
+        role: "CUSTOMER",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.user.count({
+      where: {
+        role: "COURIER",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.user.count({
+      where: {
+        role: "ADMIN",
+        isDeleted: false,
+      },
+    }),
+
+    // Shipments
+    prisma.shipment.count({
+      where: {
+        isDeleted: false,
+      },
+    }),
+
+    prisma.shipment.count({
+      where: {
+        status: "PENDING_PAYMENT",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.shipment.count({
+      where: {
+        status: "READY_FOR_ASSIGNMENT",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.shipment.count({
+      where: {
+        status: "IN_TRANSIT",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.shipment.count({
+      where: {
+        status: "DELIVERED",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.shipment.count({
+      where: {
+        status: "CANCELLED",
+        isDeleted: false,
+      },
+    }),
+
+    prisma.shipment.count({
+      where: {
+        status: "RETURNED_TO_SENDER",
+        isDeleted: false,
+      },
+    }),
+
+    // Payments
+    prisma.paymentAttempt.count(),
+
+    prisma.paymentAttempt.count({
+      where: {
+        status: "PAID",
+      },
+    }),
+
+    prisma.paymentAttempt.count({
+      where: {
+        status: "PENDING",
+      },
+    }),
+
+    prisma.paymentAttempt.count({
+      where: {
+        status: "FAILED",
+      },
+    }),
+
+    prisma.paymentAttempt.count({
+      where: {
+        status: "REFUNDED",
+      },
+    }),
+
+    // Courier availability
+    prisma.courierProfile.count({
+      where: {
+        user: {
+          isDeleted: false,
+        },
+      },
+    }),
+
+    prisma.courierProfile.count({
+      where: {
+        isAvailable: true,
+        user: {
+          isDeleted: false,
+        },
+      },
+    }),
+
+    prisma.courierProfile.count({
+      where: {
+        isAvailable: false,
+        user: {
+          isDeleted: false,
+        },
+      },
+    }),
+  ]);
+
+  return {
+    users: {
+      total: totalUsers,
+      customers,
+      couriers,
+      admins,
+    },
+
+    shipments: {
+      total: totalShipments,
+      pendingPayment,
+      readyForAssignment,
+      inTransit,
+      delivered,
+      cancelled,
+      returned,
+    },
+
+    payments: {
+      total: totalPayments,
+      paid: paidPayments,
+      pending: pendingPayments,
+      failed: failedPayments,
+      refunded: refundedPayments,
+    },
+
+    couriers: {
+      total: totalCouriers,
+      available: availableCouriers,
+      unavailable: unavailableCouriers,
+    },
+  };
+};
+
 export const adminService = {
   reassignCourier,
   getAdminUsers,
@@ -482,4 +673,5 @@ export const adminService = {
   updateUserRole,
   updateUserStatus,
   getAuditLogs,
+  getDashboardStats,
 };

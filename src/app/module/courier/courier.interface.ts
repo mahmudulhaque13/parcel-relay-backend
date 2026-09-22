@@ -1,3 +1,5 @@
+import type { ShipmentStatus } from "../../../generated/prisma/enums";
+
 export interface ICreateCourier {
   name: string;
   email: string;
@@ -15,5 +17,9 @@ export interface ICourierShipmentQuery {
   limit?: number;
   status?: string;
   q?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
+}
+
+export interface IUpdateShipmentStatus {
+  status: ShipmentStatus;
 }

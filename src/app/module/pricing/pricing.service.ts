@@ -1,8 +1,11 @@
-import httpStatus from 'http-status-codes';
+import httpStatus from "http-status-codes";
 
-import { prisma } from '../../lib/prisma';
-import type { ICreatePricingRule, IUpdatePricingRule } from './pricing.interface';
-import { AppError } from '../../utils/AppError';
+import { prisma } from "../../lib/prisma";
+import type {
+  ICreatePricingRule,
+  IUpdatePricingRule,
+} from "./pricing.interface";
+import { AppError } from "../../utils/AppError";
 
 const createPricingRule = async (payload: ICreatePricingRule) => {
   const pricingRule = await prisma.pricingRule.create({
@@ -21,24 +24,44 @@ const getAllPricingRules = async () => {
   const pricingRules = await prisma.pricingRule.findMany({
     where: {
       isActive: true,
+      isDeleted: false,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 
   return pricingRules;
 };
 
-const updatePricingRule = async (pricingRuleId: string, payload: IUpdatePricingRule) => {
-  const existingPricingRule = await prisma.pricingRule.findUnique({
+const getPricingRuleById = async (pricingRuleId: string) => {
+  const pricingRule = await prisma.pricingRule.findFirst({
     where: {
       id: pricingRuleId,
+      isDeleted: false,
+    },
+  });
+
+  if (!pricingRule) {
+    throw new AppError(httpStatus.NOT_FOUND, "Pricing rule not found");
+  }
+
+  return pricingRule;
+};
+
+const updatePricingRule = async (
+  pricingRuleId: string,
+  payload: IUpdatePricingRule,
+) => {
+  const existingPricingRule = await prisma.pricingRule.findFirst({
+    where: {
+      id: pricingRuleId,
+      isDeleted: false,
     },
   });
 
   if (!existingPricingRule) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Pricing rule not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Pricing rule not found");
   }
 
   const pricingRule = await prisma.pricingRule.update({
@@ -59,11 +82,14 @@ const deactivatePricingRule = async (pricingRuleId: string) => {
   });
 
   if (!existingPricingRule) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Pricing rule not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Pricing rule not found");
   }
 
   if (!existingPricingRule.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Pricing rule is already inactive');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Pricing rule is already inactive",
+    );
   }
 
   const pricingRule = await prisma.pricingRule.update({
@@ -78,9 +104,37 @@ const deactivatePricingRule = async (pricingRuleId: string) => {
   return pricingRule;
 };
 
+const deletePricingRule = async (pricingRuleId: string) => {
+  const existingPricingRule = await prisma.pricingRule.findFirst({
+    where: {
+      id: pricingRuleId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingPricingRule) {
+    throw new AppError(httpStatus.NOT_FOUND, "Pricing rule not found");
+  }
+
+  const pricingRule = await prisma.pricingRule.update({
+    where: {
+      id: pricingRuleId,
+    },
+    data: {
+      isActive: false,
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+  });
+
+  return pricingRule;
+};
+
 export const pricingService = {
   createPricingRule,
   getAllPricingRules,
+  getPricingRuleById,
   updatePricingRule,
   deactivatePricingRule,
+  deletePricingRule,
 };

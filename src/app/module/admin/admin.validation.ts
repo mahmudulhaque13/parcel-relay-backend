@@ -36,10 +36,49 @@ const auditLogQueryValidation = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
+const shipmentReportQueryValidation = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+
+  status: z
+    .enum([
+      "PENDING_PAYMENT",
+      "READY_FOR_ASSIGNMENT",
+      "ASSIGNED",
+      "PICKUP_SCHEDULED",
+      "PICKED_UP",
+      "AT_ORIGIN_HUB",
+      "IN_TRANSIT",
+      "AT_DESTINATION_HUB",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "RETURN_INITIATED",
+      "RETURN_IN_TRANSIT",
+      "DELIVERED",
+      "RETURNED_TO_SENDER",
+      "CANCELLED",
+    ])
+    .optional(),
+
+  originZoneId: z.string().uuid("Invalid origin zone ID").optional(),
+
+  destinationZoneId: z.string().uuid("Invalid destination zone ID").optional(),
+
+  q: z.string().trim().optional(),
+
+  sortBy: z
+    .enum(["createdAt", "deliveryCharge", "weight"])
+    .default("createdAt"),
+
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
 export const adminValidation = {
   reassignCourierValidation,
   adminUserQueryValidation,
   updateUserRoleValidation,
   updateUserStatusValidation,
   auditLogQueryValidation,
+  shipmentReportQueryValidation,
 };

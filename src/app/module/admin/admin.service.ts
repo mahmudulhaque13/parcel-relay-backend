@@ -6,6 +6,7 @@ import type {
   IAdminUserQuery,
   IAuditLogQuery,
   IReassignCourier,
+  IShipmentReportQuery,
   IUpdateUserRole,
   IUpdateUserStatus,
 } from "./admin.interface";
@@ -666,6 +667,139 @@ const getDashboardStats = async () => {
   };
 };
 
+const getShipmentReports = async (query: IShipmentReportQuery) => {
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    originZoneId,
+    destinationZoneId,
+    q,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+  } = query;
+
+  const skip = (page - 1) * limit;
+
+  const where = {
+    isDeleted: false,
+
+    ...(status ? { status } : {}),
+
+    ...(originZoneId ? { originZoneId } : {}),
+
+    ...(destinationZoneId ? { destinationZoneId } : {}),
+
+    ...(q
+      ? {
+          OR: [
+            {
+              trackingNumber: {
+                contains: q,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              recipientName: {
+                contains: q,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              recipientPhone: {
+                contains: q,
+                mode: "insensitive" as const,
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const [shipments, total, summary] = await prisma.$transaction([
+    prisma.shipment.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      select: {
+        id: true,
+        trackingNumber: true,
+        recipientName: true,
+        recipientPhone: true,
+        deliveryAddress: true,
+        weight: true,
+        deliveryCharge: true,
+        codAmount: true,
+        status: true,
+        paymentStatus: true,
+        createdAt: true,
+        updatedAt: true,
+
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        originZone: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+
+        destinationZone: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    }),
+
+    prisma.shipment.count({
+      where,
+    }),
+
+    prisma.shipment.aggregate({
+      where,
+      _count: {
+        id: true,
+      },
+      _sum: {
+        deliveryCharge: true,
+        codAmount: true,
+        weight: true,
+      },
+    }),
+  ]);
+
+  return {
+    data: shipments,
+
+    summary: {
+      totalShipments: summary._count.id,
+      totalDeliveryCharge: summary._sum.deliveryCharge ?? 0,
+      totalCodAmount: summary._sum.codAmount ?? 0,
+      totalWeight: summary._sum.weight ?? 0,
+    },
+
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
+};
+
 export const adminService = {
   reassignCourier,
   getAdminUsers,
@@ -674,4 +808,5 @@ export const adminService = {
   updateUserStatus,
   getAuditLogs,
   getDashboardStats,
+  getShipmentReports,
 };

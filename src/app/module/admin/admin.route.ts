@@ -45,4 +45,19 @@ router.get(
   adminController.getDashboardStats,
 );
 
+router.get("/audit-logs", auth(UserRole.ADMIN), adminController.getAuditLogs);
+
+router.get(
+  "/dashboard-stats",
+  auth(UserRole.ADMIN),
+  adminController.getDashboardStats,
+);
+
+router.get(
+  "/reports/shipments",
+  auth(UserRole.ADMIN),
+  validateRequest(adminValidation.shipmentReportQueryValidation),
+  adminController.getShipmentReports,
+);
+
 export const adminRoutes = router;

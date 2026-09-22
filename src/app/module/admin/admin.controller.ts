@@ -101,6 +101,18 @@ const getDashboardStats = catchAsync(async (_req, res) => {
   });
 });
 
+const getShipmentReports = catchAsync(async (req, res) => {
+  const query = adminValidation.shipmentReportQueryValidation.parse(req.query);
+
+  const result = await adminService.getShipmentReports(query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Shipment reports retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   reassignCourier,
   getAdminUsers,
@@ -109,4 +121,5 @@ export const adminController = {
   updateUserStatus,
   getAuditLogs,
   getDashboardStats,
+  getShipmentReports,
 };

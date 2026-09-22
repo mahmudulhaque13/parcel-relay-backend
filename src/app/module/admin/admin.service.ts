@@ -1,7 +1,7 @@
-import httpStatus from "http-status-codes";
+import httpStatus from 'http-status-codes';
 
-import { prisma } from "../../lib/prisma";
-import { AppError } from "../../utils/AppError";
+import { prisma } from '../../lib/prisma';
+import { AppError } from '../../utils/AppError';
 import type {
   IAdminUserQuery,
   IAuditLogQuery,
@@ -9,18 +9,14 @@ import type {
   IShipmentReportQuery,
   IUpdateUserRole,
   IUpdateUserStatus,
-} from "./admin.interface";
+} from './admin.interface';
 
-const reassignCourier = async (
-  adminId: string,
-  shipmentId: string,
-  payload: IReassignCourier,
-) => {
+const reassignCourier = async (adminId: string, shipmentId: string, payload: IReassignCourier) => {
   const newCourier = await prisma.user.findFirst({
     where: {
       id: payload.courierId,
-      role: "COURIER",
-      status: "ACTIVE",
+      role: 'COURIER',
+      status: 'ACTIVE',
       isDeleted: false,
     },
     include: {
@@ -29,11 +25,11 @@ const reassignCourier = async (
   });
 
   if (!newCourier) {
-    throw new AppError(httpStatus.NOT_FOUND, "Active courier not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Active courier not found');
   }
 
   if (!newCourier.courierProfile) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Courier profile not found");
+    throw new AppError(httpStatus.BAD_REQUEST, 'Courier profile not found');
   }
 
   const newCourierProfile = newCourier.courierProfile;
@@ -52,21 +48,15 @@ const reassignCourier = async (
     });
 
     if (!shipment) {
-      throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+      throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
     }
 
     if (!shipment.courierId) {
-      throw new AppError(
-        httpStatus.BAD_REQUEST,
-        "Shipment is not currently assigned to a courier",
-      );
+      throw new AppError(httpStatus.BAD_REQUEST, 'Shipment is not currently assigned to a courier');
     }
 
     if (shipment.courierId === newCourierProfile.id) {
-      throw new AppError(
-        httpStatus.CONFLICT,
-        "Shipment is already assigned to this courier",
-      );
+      throw new AppError(httpStatus.CONFLICT, 'Shipment is already assigned to this courier');
     }
 
     const updatedShipment = await tx.shipment.updateMany({
@@ -81,10 +71,7 @@ const reassignCourier = async (
     });
 
     if (updatedShipment.count !== 1) {
-      throw new AppError(
-        httpStatus.CONFLICT,
-        "Shipment assignment changed. Please try again",
-      );
+      throw new AppError(httpStatus.CONFLICT, 'Shipment assignment changed. Please try again');
     }
 
     const event = await tx.shipmentEvent.create({
@@ -98,8 +85,8 @@ const reassignCourier = async (
     await tx.auditLog.create({
       data: {
         userId: adminId,
-        action: "ASSIGN",
-        entityType: "Shipment",
+        action: 'ASSIGN',
+        entityType: 'Shipment',
         entityId: shipmentId,
         description: `Shipment reassigned to courier ${newCourier.name}`,
         metadata: {
@@ -122,7 +109,7 @@ const reassignCourier = async (
 };
 
 const getAdminUsers = async (query: IAdminUserQuery) => {
-  const { page = 1, limit = 10, role, status, q, sortOrder = "desc" } = query;
+  const { page = 1, limit = 10, role, status, q, sortOrder = 'desc' } = query;
 
   const skip = (page - 1) * limit;
 
@@ -140,13 +127,13 @@ const getAdminUsers = async (query: IAdminUserQuery) => {
         {
           name: {
             contains: q,
-            mode: "insensitive" as const,
+            mode: 'insensitive' as const,
           },
         },
         {
           email: {
             contains: q,
-            mode: "insensitive" as const,
+            mode: 'insensitive' as const,
           },
         },
       ],
@@ -217,17 +204,13 @@ const getAdminUserById = async (userId: string) => {
   });
 
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   return user;
 };
 
-const updateUserRole = async (
-  adminId: string,
-  userId: string,
-  payload: IUpdateUserRole,
-) => {
+const updateUserRole = async (adminId: string, userId: string, payload: IUpdateUserRole) => {
   const user = await prisma.user.findFirst({
     where: {
       id: userId,
@@ -248,19 +231,19 @@ const updateUserRole = async (
   });
 
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   if (user.role === payload.role) {
-    throw new AppError(httpStatus.CONFLICT, "User already has this role");
+    throw new AppError(httpStatus.CONFLICT, 'User already has this role');
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    if (payload.role === "COURIER" && !user.courierProfile) {
+    if (payload.role === 'COURIER' && !user.courierProfile) {
       if (!payload.phone) {
         throw new AppError(
           httpStatus.BAD_REQUEST,
-          "Phone number is required when changing role to COURIER",
+          'Phone number is required when changing role to COURIER',
         );
       }
 
@@ -291,8 +274,8 @@ const updateUserRole = async (
     await tx.auditLog.create({
       data: {
         userId: adminId,
-        action: "UPDATE",
-        entityType: "User",
+        action: 'UPDATE',
+        entityType: 'User',
         entityId: userId,
         description: `User role changed from ${user.role} to ${payload.role}`,
         metadata: {
@@ -308,11 +291,7 @@ const updateUserRole = async (
   return result;
 };
 
-const updateUserStatus = async (
-  adminId: string,
-  userId: string,
-  payload: IUpdateUserStatus,
-) => {
+const updateUserStatus = async (adminId: string, userId: string, payload: IUpdateUserStatus) => {
   const user = await prisma.user.findFirst({
     where: {
       id: userId,
@@ -328,11 +307,11 @@ const updateUserStatus = async (
   });
 
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   if (user.status === payload.status) {
-    throw new AppError(httpStatus.CONFLICT, "User already has this status");
+    throw new AppError(httpStatus.CONFLICT, 'User already has this status');
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -342,7 +321,7 @@ const updateUserStatus = async (
       },
       data: {
         status: payload.status,
-        ...(payload.status === "DELETED"
+        ...(payload.status === 'DELETED'
           ? {
               isDeleted: true,
               deletedAt: new Date(),
@@ -366,8 +345,8 @@ const updateUserStatus = async (
     await tx.auditLog.create({
       data: {
         userId: adminId,
-        action: "UPDATE",
-        entityType: "User",
+        action: 'UPDATE',
+        entityType: 'User',
         entityId: userId,
         description: `User status changed from ${user.status} to ${payload.status}`,
         metadata: {
@@ -384,15 +363,7 @@ const updateUserStatus = async (
 };
 
 const getAuditLogs = async (query: IAuditLogQuery) => {
-  const {
-    page = 1,
-    limit = 10,
-    action,
-    entityType,
-    userId,
-    q,
-    sortOrder = "desc",
-  } = query;
+  const { page = 1, limit = 10, action, entityType, userId, q, sortOrder = 'desc' } = query;
 
   const skip = (page - 1) * limit;
 
@@ -402,7 +373,7 @@ const getAuditLogs = async (query: IAuditLogQuery) => {
       ? {
           entityType: {
             contains: entityType,
-            mode: "insensitive",
+            mode: 'insensitive',
           },
         }
       : {}),
@@ -413,19 +384,19 @@ const getAuditLogs = async (query: IAuditLogQuery) => {
             {
               description: {
                 contains: q,
-                mode: "insensitive",
+                mode: 'insensitive',
               },
             },
             {
               entityType: {
                 contains: q,
-                mode: "insensitive",
+                mode: 'insensitive',
               },
             },
             {
               entityId: {
                 contains: q,
-                mode: "insensitive",
+                mode: 'insensitive',
               },
             },
           ],
@@ -510,21 +481,21 @@ const getDashboardStats = async () => {
 
     prisma.user.count({
       where: {
-        role: "CUSTOMER",
+        role: 'CUSTOMER',
         isDeleted: false,
       },
     }),
 
     prisma.user.count({
       where: {
-        role: "COURIER",
+        role: 'COURIER',
         isDeleted: false,
       },
     }),
 
     prisma.user.count({
       where: {
-        role: "ADMIN",
+        role: 'ADMIN',
         isDeleted: false,
       },
     }),
@@ -538,42 +509,42 @@ const getDashboardStats = async () => {
 
     prisma.shipment.count({
       where: {
-        status: "PENDING_PAYMENT",
+        status: 'PENDING_PAYMENT',
         isDeleted: false,
       },
     }),
 
     prisma.shipment.count({
       where: {
-        status: "READY_FOR_ASSIGNMENT",
+        status: 'READY_FOR_ASSIGNMENT',
         isDeleted: false,
       },
     }),
 
     prisma.shipment.count({
       where: {
-        status: "IN_TRANSIT",
+        status: 'IN_TRANSIT',
         isDeleted: false,
       },
     }),
 
     prisma.shipment.count({
       where: {
-        status: "DELIVERED",
+        status: 'DELIVERED',
         isDeleted: false,
       },
     }),
 
     prisma.shipment.count({
       where: {
-        status: "CANCELLED",
+        status: 'CANCELLED',
         isDeleted: false,
       },
     }),
 
     prisma.shipment.count({
       where: {
-        status: "RETURNED_TO_SENDER",
+        status: 'RETURNED_TO_SENDER',
         isDeleted: false,
       },
     }),
@@ -583,25 +554,25 @@ const getDashboardStats = async () => {
 
     prisma.paymentAttempt.count({
       where: {
-        status: "PAID",
+        status: 'PAID',
       },
     }),
 
     prisma.paymentAttempt.count({
       where: {
-        status: "PENDING",
+        status: 'PENDING',
       },
     }),
 
     prisma.paymentAttempt.count({
       where: {
-        status: "FAILED",
+        status: 'FAILED',
       },
     }),
 
     prisma.paymentAttempt.count({
       where: {
-        status: "REFUNDED",
+        status: 'REFUNDED',
       },
     }),
 
@@ -675,8 +646,8 @@ const getShipmentReports = async (query: IShipmentReportQuery) => {
     originZoneId,
     destinationZoneId,
     q,
-    sortBy = "createdAt",
-    sortOrder = "desc",
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
   } = query;
 
   const skip = (page - 1) * limit;
@@ -696,19 +667,19 @@ const getShipmentReports = async (query: IShipmentReportQuery) => {
             {
               trackingNumber: {
                 contains: q,
-                mode: "insensitive" as const,
+                mode: 'insensitive' as const,
               },
             },
             {
               recipientName: {
                 contains: q,
-                mode: "insensitive" as const,
+                mode: 'insensitive' as const,
               },
             },
             {
               recipientPhone: {
                 contains: q,
-                mode: "insensitive" as const,
+                mode: 'insensitive' as const,
               },
             },
           ],

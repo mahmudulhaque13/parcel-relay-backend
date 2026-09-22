@@ -1,39 +1,35 @@
-import express from "express";
+import express from 'express';
 
-import { paymentController } from "./payment.controller";
+import { paymentController } from './payment.controller';
 
-import { paymentValidation } from "./payment.validation";
+import { paymentValidation } from './payment.validation';
 
-import { validateRequest } from "../../middleware/validateRequest";
+import { validateRequest } from '../../middleware/validateRequest';
 
-import { auth } from "../../middleware/checkAuth";
+import { auth } from '../../middleware/checkAuth';
 
-import { UserRole } from "../../../generated/prisma/client";
+import { UserRole } from '../../../generated/prisma/client';
 
 const router = express.Router();
 
 router.post(
-  "/initiate",
+  '/initiate',
   auth(UserRole.CUSTOMER),
   validateRequest(paymentValidation.initiatePaymentValidation),
   paymentController.initiatePayment,
 );
 
-router.get("/success", paymentController.paymentSuccess);
+router.get('/success', paymentController.paymentSuccess);
 
 router.post(
-  "/refund",
+  '/refund',
   auth(UserRole.ADMIN),
   validateRequest(paymentValidation.refundPaymentValidation),
   paymentController.refundPayment,
 );
 
-router.get("/cancel", paymentController.paymentCancel);
+router.get('/cancel', paymentController.paymentCancel);
 
-router.get(
-  "/:shipmentId",
-  auth(UserRole.CUSTOMER),
-  paymentController.getPaymentStatus,
-);
+router.get('/:shipmentId', auth(UserRole.CUSTOMER), paymentController.getPaymentStatus);
 
 export const paymentRoutes = router;

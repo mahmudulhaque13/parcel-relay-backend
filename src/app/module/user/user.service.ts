@@ -1,7 +1,7 @@
-import httpStatus from "http-status-codes";
+import httpStatus from 'http-status-codes';
 
-import { prisma } from "../../lib/prisma";
-import { AppError } from "../../utils/AppError";
+import { prisma } from '../../lib/prisma';
+import { AppError } from '../../utils/AppError';
 
 const getAllUsers = async () => {
   const users = await prisma.user.findMany({
@@ -21,12 +21,12 @@ const getAllUsers = async () => {
       courierProfile: true,
     },
     orderBy: {
-      createdAt: "desc",
+      createdAt: 'desc',
     },
   });
 
   if (!users.length) {
-    throw new AppError(httpStatus.NOT_FOUND, "No users found");
+    throw new AppError(httpStatus.NOT_FOUND, 'No users found');
   }
 
   return users;
@@ -54,7 +54,7 @@ const getMyProfile = async (userId: string) => {
   });
 
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   return user;
@@ -77,7 +77,7 @@ const updateMyProfile = async (userId: string, payload: IUpdateMyProfile) => {
   });
 
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   const updatedUser = await prisma.user.update({

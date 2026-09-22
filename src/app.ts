@@ -1,36 +1,32 @@
-import cors from "cors";
-import express, {
-  type Application,
-  type Request,
-  type Response,
-} from "express";
-import helmet from "helmet";
+import cors from 'cors';
+import express, { type Application, type Request, type Response } from 'express';
+import helmet from 'helmet';
 
-import config from "./app/config";
-import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
-import { notFound } from "./app/middleware/notFound";
-import { apiRateLimiter } from "./app/middleware/rateLimiter";
-import { authRoutes } from "./app/module/auth/auth.route";
-import { healthRoutes } from "./app/module/health/health.route";
-import { userRoutes } from "./app/module/user/user.route";
-import { zoneRoutes } from "./app/module/zone/zone.route";
-import { hubRoutes } from "./app/module/hub/hub.route";
-import { pricingRoutes } from "./app/module/pricing/pricing.route";
-import { shipmentRoutes } from "./app/module/shipment/shipment.route";
-import { paymentRoutes } from "./app/module/payment/payment.route";
-import { paymentController } from "./app/module/payment/payment.controller";
-import { courierRoutes } from "./app/module/courier/courier.route";
-import { pickupRoutes } from "./app/module/pickup/pickup.route";
-import { transferRoutes } from "./app/module/transfer/transfer.route";
-import { trackingRoutes } from "./app/module/tracking/tracking.route";
-import { adminRoutes } from "./app/module/admin/admin.route";
+import config from './app/config';
+import { globalErrorHandler } from './app/middleware/globalErrorHandler';
+import { notFound } from './app/middleware/notFound';
+import { apiRateLimiter } from './app/middleware/rateLimiter';
+import { authRoutes } from './app/module/auth/auth.route';
+import { healthRoutes } from './app/module/health/health.route';
+import { userRoutes } from './app/module/user/user.route';
+import { zoneRoutes } from './app/module/zone/zone.route';
+import { hubRoutes } from './app/module/hub/hub.route';
+import { pricingRoutes } from './app/module/pricing/pricing.route';
+import { shipmentRoutes } from './app/module/shipment/shipment.route';
+import { paymentRoutes } from './app/module/payment/payment.route';
+import { paymentController } from './app/module/payment/payment.controller';
+import { courierRoutes } from './app/module/courier/courier.route';
+import { pickupRoutes } from './app/module/pickup/pickup.route';
+import { transferRoutes } from './app/module/transfer/transfer.route';
+import { trackingRoutes } from './app/module/tracking/tracking.route';
+import { adminRoutes } from './app/module/admin/admin.route';
 
-import cookieParser from "cookie-parser";
+import cookieParser from 'cookie-parser';
 
 const app: Application = express();
 
 // Trust the platform proxy so client IPs / rate limiting work correctly.
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 
 // ---- Security middleware ----
 
@@ -45,16 +41,16 @@ app.use(
 
 // Stripe webhook MUST be before express.json()
 app.post(
-  "/api/v1/payments/webhook",
+  '/api/v1/payments/webhook',
   express.raw({
-    type: "application/json",
+    type: 'application/json',
   }),
   paymentController.handleWebhook,
 );
 
 // ---- Body parsing ----
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: '1mb' }));
 
 app.use(cookieParser());
 
@@ -62,37 +58,37 @@ app.use(express.urlencoded({ extended: true }));
 
 // ---- Rate limiting (baseline for the whole API) ----
 
-app.use("/api", apiRateLimiter);
+app.use('/api', apiRateLimiter);
 
 // ---- Root info route ----
 
-app.get("/", (_req: Request, res: Response) => {
+app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
-    message: "ParcelRelay API",
+    message: 'ParcelRelay API',
     data: {
-      name: "ParcelRelay",
-      version: "v1",
-      docs: "/api/v1/health",
+      name: 'ParcelRelay',
+      version: 'v1',
+      docs: '/api/v1/health',
     },
   });
 });
 
 // ---- API v1 routes ----
 
-app.use("/api/v1/health", healthRoutes);
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/users", userRoutes);
-app.use("/api/v1/zones", zoneRoutes);
-app.use("/api/v1/hubs", hubRoutes);
-app.use("/api/v1/pricing", pricingRoutes);
-app.use("/api/v1/shipments", shipmentRoutes);
-app.use("/api/v1/payments", paymentRoutes);
-app.use("/api/v1/courier", courierRoutes);
-app.use("/api/v1", pickupRoutes);
-app.use("/api/v1", transferRoutes);
-app.use("/api/v1/tracking", trackingRoutes);
-app.use("/api/v1/admin", adminRoutes);
+app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/zones', zoneRoutes);
+app.use('/api/v1/hubs', hubRoutes);
+app.use('/api/v1/pricing', pricingRoutes);
+app.use('/api/v1/shipments', shipmentRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/courier', courierRoutes);
+app.use('/api/v1', pickupRoutes);
+app.use('/api/v1', transferRoutes);
+app.use('/api/v1/tracking', trackingRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // ---- 404 + centralized error handling (must be last) ----
 

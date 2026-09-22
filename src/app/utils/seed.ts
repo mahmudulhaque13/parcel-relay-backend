@@ -1,10 +1,10 @@
-import bcrypt from "bcrypt";
-import httpStatus from "http-status-codes";
+import bcrypt from 'bcrypt';
+import httpStatus from 'http-status-codes';
 
-import { UserRole } from "../../generated/prisma/enums";
-import config from "../config";
-import { prisma } from "../lib/prisma";
-import { AppError } from "./AppError";
+import { UserRole } from '../../generated/prisma/enums';
+import config from '../config';
+import { prisma } from '../lib/prisma';
+import { AppError } from './AppError';
 
 export const seedAdmin = async () => {
   try {
@@ -15,7 +15,7 @@ export const seedAdmin = async () => {
     });
 
     if (isAdminExist) {
-      console.log("Admin Already Exists!");
+      console.log('Admin Already Exists!');
       return;
     }
 
@@ -26,14 +26,11 @@ export const seedAdmin = async () => {
     if (!name || !email || !password) {
       throw new AppError(
         httpStatus.INTERNAL_SERVER_ERROR,
-        "Admin Name, Email, Password Missing In Env File!!!",
+        'Admin Name, Email, Password Missing In Env File!!!',
       );
     }
 
-    const hashedPassword = await bcrypt.hash(
-      password,
-      Number(config.bcrypt_salt_rounds),
-    );
+    const hashedPassword = await bcrypt.hash(password, Number(config.bcrypt_salt_rounds));
 
     const admin = await prisma.user.create({
       data: {
@@ -46,9 +43,9 @@ export const seedAdmin = async () => {
       },
     });
 
-    console.log("Admin Created : ", admin);
+    console.log('Admin Created : ', admin);
   } catch (error) {
-    console.log("Error Seeding Admin : ", error);
+    console.log('Error Seeding Admin : ', error);
 
     await prisma.user.delete({
       where: {

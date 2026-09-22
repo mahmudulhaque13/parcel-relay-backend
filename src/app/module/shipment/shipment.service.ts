@@ -1,16 +1,16 @@
-import httpStatus from "http-status-codes";
+import httpStatus from 'http-status-codes';
 
-import { prisma } from "../../lib/prisma";
-import { AppError } from "../../utils/AppError";
+import { prisma } from '../../lib/prisma';
+import { AppError } from '../../utils/AppError';
 import type {
   ICreateShipment,
   IShipmentQuery,
   IShipmentQuote,
   IUpdateShipment,
   IUpdateShipmentStatus,
-} from "./shipment.interface";
+} from './shipment.interface';
 
-import { UserRole } from "../../../generated/prisma/enums";
+import { UserRole } from '../../../generated/prisma/enums';
 
 const generateTrackingNumber = () => {
   const timestamp = Date.now();
@@ -27,11 +27,11 @@ const getShipmentQuote = async (payload: IShipmentQuote) => {
   });
 
   if (!originZone) {
-    throw new AppError(httpStatus.NOT_FOUND, "Origin zone not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Origin zone not found');
   }
 
   if (!originZone.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Origin zone is inactive");
+    throw new AppError(httpStatus.BAD_REQUEST, 'Origin zone is inactive');
   }
 
   const destinationZone = await prisma.zone.findUnique({
@@ -41,11 +41,11 @@ const getShipmentQuote = async (payload: IShipmentQuote) => {
   });
 
   if (!destinationZone) {
-    throw new AppError(httpStatus.NOT_FOUND, "Destination zone not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Destination zone not found');
   }
 
   if (!destinationZone.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Destination zone is inactive");
+    throw new AppError(httpStatus.BAD_REQUEST, 'Destination zone is inactive');
   }
 
   const pricingRule = await prisma.pricingRule.findFirst({
@@ -53,12 +53,12 @@ const getShipmentQuote = async (payload: IShipmentQuote) => {
       isActive: true,
     },
     orderBy: {
-      createdAt: "desc",
+      createdAt: 'desc',
     },
   });
 
   if (!pricingRule) {
-    throw new AppError(httpStatus.NOT_FOUND, "No active pricing rule found");
+    throw new AppError(httpStatus.NOT_FOUND, 'No active pricing rule found');
   }
 
   const basePrice = Number(pricingRule.basePrice);
@@ -101,11 +101,7 @@ const getShipmentQuote = async (payload: IShipmentQuote) => {
   };
 };
 
-const updateShipment = async (
-  shipmentId: string,
-  customerId: string,
-  payload: IUpdateShipment,
-) => {
+const updateShipment = async (shipmentId: string, customerId: string, payload: IUpdateShipment) => {
   const shipment = await prisma.shipment.findUnique({
     where: {
       id: shipmentId,
@@ -113,28 +109,19 @@ const updateShipment = async (
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
   }
 
   if (shipment.customerId !== customerId) {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      "You do not have permission to update this shipment",
-    );
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have permission to update this shipment');
   }
 
-  if (shipment.status !== "PENDING_PAYMENT") {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "Shipment can only be updated before payment",
-    );
+  if (shipment.status !== 'PENDING_PAYMENT') {
+    throw new AppError(httpStatus.CONFLICT, 'Shipment can only be updated before payment');
   }
 
-  if (shipment.paymentStatus !== "PENDING") {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "Shipment payment has already been processed",
-    );
+  if (shipment.paymentStatus !== 'PENDING') {
+    throw new AppError(httpStatus.CONFLICT, 'Shipment payment has already been processed');
   }
 
   const pricingRule = await prisma.pricingRule.findFirst({
@@ -142,12 +129,12 @@ const updateShipment = async (
       isActive: true,
     },
     orderBy: {
-      createdAt: "desc",
+      createdAt: 'desc',
     },
   });
 
   if (!pricingRule) {
-    throw new AppError(httpStatus.NOT_FOUND, "No active pricing rule found");
+    throw new AppError(httpStatus.NOT_FOUND, 'No active pricing rule found');
   }
 
   const weight = payload.weight ?? Number(shipment.weight);
@@ -167,8 +154,8 @@ const updateShipment = async (
       where: {
         id: shipmentId,
         customerId,
-        status: "PENDING_PAYMENT",
-        paymentStatus: "PENDING",
+        status: 'PENDING_PAYMENT',
+        paymentStatus: 'PENDING',
       },
       data: {
         ...(payload.recipientName !== undefined && {
@@ -195,19 +182,16 @@ const updateShipment = async (
     });
 
     if (updatedShipment.count !== 1) {
-      throw new AppError(
-        httpStatus.CONFLICT,
-        "Shipment was changed by another request",
-      );
+      throw new AppError(httpStatus.CONFLICT, 'Shipment was changed by another request');
     }
 
     await tx.auditLog.create({
       data: {
         userId: customerId,
-        action: "UPDATE",
-        entityType: "Shipment",
+        action: 'UPDATE',
+        entityType: 'Shipment',
         entityId: shipmentId,
-        description: "Shipment details updated",
+        description: 'Shipment details updated',
         metadata: {
           updatedFields: Object.keys(payload),
           deliveryCharge,
@@ -241,23 +225,17 @@ const cancelShipment = async (shipmentId: string, customerId: string) => {
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
   }
 
-  const cancellableStatuses = ["PENDING_PAYMENT", "READY_FOR_ASSIGNMENT"];
+  const cancellableStatuses = ['PENDING_PAYMENT', 'READY_FOR_ASSIGNMENT'];
 
   if (!cancellableStatuses.includes(shipment.status)) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "Shipment cannot be cancelled in its current status",
-    );
+    throw new AppError(httpStatus.CONFLICT, 'Shipment cannot be cancelled in its current status');
   }
 
-  if (shipment.paymentStatus !== "PENDING") {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "Paid shipment cannot be cancelled",
-    );
+  if (shipment.paymentStatus !== 'PENDING') {
+    throw new AppError(httpStatus.CONFLICT, 'Paid shipment cannot be cancelled');
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -266,25 +244,25 @@ const cancelShipment = async (shipmentId: string, customerId: string) => {
         id: shipmentId,
       },
       data: {
-        status: "CANCELLED",
+        status: 'CANCELLED',
       },
     });
 
     await tx.shipmentEvent.create({
       data: {
         shipmentId,
-        status: "CANCELLED",
-        description: "Shipment cancelled by customer",
+        status: 'CANCELLED',
+        description: 'Shipment cancelled by customer',
       },
     });
 
     await tx.auditLog.create({
       data: {
         userId: customerId,
-        action: "STATUS_CHANGE",
-        entityType: "Shipment",
+        action: 'STATUS_CHANGE',
+        entityType: 'Shipment',
         entityId: shipmentId,
-        description: "Shipment cancelled by customer",
+        description: 'Shipment cancelled by customer',
       },
     });
 
@@ -302,11 +280,11 @@ const createShipment = async (customerId: string, payload: ICreateShipment) => {
   });
 
   if (!originZone) {
-    throw new AppError(httpStatus.NOT_FOUND, "Origin zone not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Origin zone not found');
   }
 
   if (!originZone.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Origin zone is inactive");
+    throw new AppError(httpStatus.BAD_REQUEST, 'Origin zone is inactive');
   }
 
   const destinationZone = await prisma.zone.findUnique({
@@ -316,11 +294,11 @@ const createShipment = async (customerId: string, payload: ICreateShipment) => {
   });
 
   if (!destinationZone) {
-    throw new AppError(httpStatus.NOT_FOUND, "Destination zone not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Destination zone not found');
   }
 
   if (!destinationZone.isActive) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Destination zone is inactive");
+    throw new AppError(httpStatus.BAD_REQUEST, 'Destination zone is inactive');
   }
 
   const pricingRule = await prisma.pricingRule.findFirst({
@@ -328,12 +306,12 @@ const createShipment = async (customerId: string, payload: ICreateShipment) => {
       isActive: true,
     },
     orderBy: {
-      createdAt: "desc",
+      createdAt: 'desc',
     },
   });
 
   if (!pricingRule) {
-    throw new AppError(httpStatus.NOT_FOUND, "No active pricing rule found");
+    throw new AppError(httpStatus.NOT_FOUND, 'No active pricing rule found');
   }
 
   const basePrice = Number(pricingRule.basePrice);
@@ -363,8 +341,8 @@ const createShipment = async (customerId: string, payload: ICreateShipment) => {
       deliveryCharge,
       codAmount: payload.codAmount,
 
-      status: "PENDING_PAYMENT",
-      paymentStatus: "PENDING",
+      status: 'PENDING_PAYMENT',
+      paymentStatus: 'PENDING',
     },
   });
 
@@ -372,14 +350,7 @@ const createShipment = async (customerId: string, payload: ICreateShipment) => {
 };
 
 const getMyShipments = async (customerId: string, query: IShipmentQuery) => {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    q,
-    sortBy = "createdAt",
-    sortOrder = "desc",
-  } = query;
+  const { page = 1, limit = 10, status, q, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
   const skip = (page - 1) * limit;
 
@@ -394,13 +365,13 @@ const getMyShipments = async (customerId: string, query: IShipmentQuery) => {
         {
           trackingNumber: {
             contains: q,
-            mode: "insensitive" as const,
+            mode: 'insensitive' as const,
           },
         },
         {
           recipientName: {
             contains: q,
-            mode: "insensitive" as const,
+            mode: 'insensitive' as const,
           },
         },
       ],
@@ -438,11 +409,7 @@ const getMyShipments = async (customerId: string, query: IShipmentQuery) => {
   };
 };
 
-const getShipmentById = async (
-  shipmentId: string,
-  userId: string,
-  role: UserRole,
-) => {
+const getShipmentById = async (shipmentId: string, userId: string, role: UserRole) => {
   const where: {
     id: string;
     isDeleted: boolean;
@@ -464,7 +431,7 @@ const getShipmentById = async (
     });
 
     if (!courier) {
-      throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
+      throw new AppError(httpStatus.NOT_FOUND, 'Courier profile not found');
     }
 
     where.courierId = courier.id;
@@ -478,7 +445,7 @@ const getShipmentById = async (
       pricingRule: true,
       events: {
         orderBy: {
-          createdAt: "desc",
+          createdAt: 'desc',
         },
       },
     },
@@ -488,8 +455,8 @@ const getShipmentById = async (
     throw new AppError(
       httpStatus.NOT_FOUND,
       role === UserRole.COURIER
-        ? "Shipment not found or not assigned to you"
-        : "Shipment not found",
+        ? 'Shipment not found or not assigned to you'
+        : 'Shipment not found',
     );
   }
 
@@ -511,7 +478,7 @@ const getShipmentTimeline = async (shipmentId: string, customerId: string) => {
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
   }
 
   const events = await prisma.shipmentEvent.findMany({
@@ -519,7 +486,7 @@ const getShipmentTimeline = async (shipmentId: string, customerId: string) => {
       shipmentId,
     },
     orderBy: {
-      createdAt: "asc",
+      createdAt: 'asc',
     },
   });
 
@@ -532,7 +499,7 @@ const getShipmentTimeline = async (shipmentId: string, customerId: string) => {
 const updateShipmentStatus = async (
   shipmentId: string,
   actorId: string,
-  actorRole: "CUSTOMER" | "COURIER" | "ADMIN",
+  actorRole: 'CUSTOMER' | 'COURIER' | 'ADMIN',
   payload: IUpdateShipmentStatus,
 ) => {
   const shipment = await prisma.shipment.findUnique({
@@ -542,25 +509,25 @@ const updateShipmentStatus = async (
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
   }
 
   const currentStatus = shipment.status;
   const nextStatus = payload.status;
 
   const allowedTransitions: Record<string, string[]> = {
-    PENDING_PAYMENT: ["CANCELLED"],
-    READY_FOR_ASSIGNMENT: ["CANCELLED"],
-    ASSIGNED: ["PICKUP_SCHEDULED"],
-    PICKUP_SCHEDULED: ["PICKED_UP", "CANCELLED"],
-    PICKED_UP: ["AT_ORIGIN_HUB"],
-    AT_ORIGIN_HUB: ["IN_TRANSIT"],
-    IN_TRANSIT: ["AT_DESTINATION_HUB"],
-    AT_DESTINATION_HUB: ["OUT_FOR_DELIVERY"],
-    OUT_FOR_DELIVERY: ["DELIVERY_FAILED", "DELIVERED"],
-    DELIVERY_FAILED: ["OUT_FOR_DELIVERY", "RETURN_INITIATED"],
-    RETURN_INITIATED: ["RETURN_IN_TRANSIT"],
-    RETURN_IN_TRANSIT: ["RETURNED_TO_SENDER"],
+    PENDING_PAYMENT: ['CANCELLED'],
+    READY_FOR_ASSIGNMENT: ['CANCELLED'],
+    ASSIGNED: ['PICKUP_SCHEDULED'],
+    PICKUP_SCHEDULED: ['PICKED_UP', 'CANCELLED'],
+    PICKED_UP: ['AT_ORIGIN_HUB'],
+    AT_ORIGIN_HUB: ['IN_TRANSIT'],
+    IN_TRANSIT: ['AT_DESTINATION_HUB'],
+    AT_DESTINATION_HUB: ['OUT_FOR_DELIVERY'],
+    OUT_FOR_DELIVERY: ['DELIVERY_FAILED', 'DELIVERED'],
+    DELIVERY_FAILED: ['OUT_FOR_DELIVERY', 'RETURN_INITIATED'],
+    RETURN_INITIATED: ['RETURN_IN_TRANSIT'],
+    RETURN_IN_TRANSIT: ['RETURNED_TO_SENDER'],
     DELIVERED: [],
     RETURNED_TO_SENDER: [],
     CANCELLED: [],
@@ -576,24 +543,21 @@ const updateShipmentStatus = async (
   }
 
   // Customer ownership
-  if (actorRole === "CUSTOMER") {
+  if (actorRole === 'CUSTOMER') {
     if (shipment.customerId !== actorId) {
       throw new AppError(
         httpStatus.FORBIDDEN,
-        "You do not have permission to update this shipment",
+        'You do not have permission to update this shipment',
       );
     }
 
-    if (nextStatus !== "CANCELLED") {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        "Customer can only cancel a shipment",
-      );
+    if (nextStatus !== 'CANCELLED') {
+      throw new AppError(httpStatus.FORBIDDEN, 'Customer can only cancel a shipment');
     }
   }
 
   // Courier ownership
-  if (actorRole === "COURIER") {
+  if (actorRole === 'COURIER') {
     const courier = await prisma.courierProfile.findUnique({
       where: {
         userId: actorId,
@@ -601,14 +565,11 @@ const updateShipmentStatus = async (
     });
 
     if (!courier) {
-      throw new AppError(httpStatus.FORBIDDEN, "Courier profile not found");
+      throw new AppError(httpStatus.FORBIDDEN, 'Courier profile not found');
     }
 
     if (shipment.courierId !== courier.id) {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        "This shipment is not assigned to you",
-      );
+      throw new AppError(httpStatus.FORBIDDEN, 'This shipment is not assigned to you');
     }
   }
 
@@ -624,10 +585,7 @@ const updateShipmentStatus = async (
     });
 
     if (updatedShipment.count !== 1) {
-      throw new AppError(
-        httpStatus.CONFLICT,
-        "Shipment status was changed by another request",
-      );
+      throw new AppError(httpStatus.CONFLICT, 'Shipment status was changed by another request');
     }
 
     const event = await tx.shipmentEvent.create({
@@ -635,8 +593,7 @@ const updateShipmentStatus = async (
         shipmentId,
         status: nextStatus,
         description:
-          payload.note ||
-          `Shipment status changed from ${currentStatus} to ${nextStatus}`,
+          payload.note || `Shipment status changed from ${currentStatus} to ${nextStatus}`,
         location: payload.location,
       },
     });
@@ -644,8 +601,8 @@ const updateShipmentStatus = async (
     await tx.auditLog.create({
       data: {
         userId: actorId,
-        action: "STATUS_CHANGE",
-        entityType: "Shipment",
+        action: 'STATUS_CHANGE',
+        entityType: 'Shipment',
         entityId: shipmentId,
         description: `Shipment status changed from ${currentStatus} to ${nextStatus}`,
         metadata: {
@@ -686,29 +643,23 @@ const deleteShipment = async (shipmentId: string, userId: string) => {
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
   }
 
   if (shipment.customerId !== userId) {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      "You are not allowed to delete this shipment",
-    );
+    throw new AppError(httpStatus.FORBIDDEN, 'You are not allowed to delete this shipment');
   }
 
   if (shipment.isDeleted) {
-    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
   }
 
-  if (shipment.status !== "PENDING_PAYMENT") {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "Only pending payment shipments can be deleted",
-    );
+  if (shipment.status !== 'PENDING_PAYMENT') {
+    throw new AppError(httpStatus.CONFLICT, 'Only pending payment shipments can be deleted');
   }
 
-  if (shipment.paymentStatus !== "PENDING") {
-    throw new AppError(httpStatus.CONFLICT, "Paid shipment cannot be deleted");
+  if (shipment.paymentStatus !== 'PENDING') {
+    throw new AppError(httpStatus.CONFLICT, 'Paid shipment cannot be deleted');
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -725,10 +676,10 @@ const deleteShipment = async (shipmentId: string, userId: string) => {
     await tx.auditLog.create({
       data: {
         userId,
-        action: "DELETE",
-        entityType: "Shipment",
+        action: 'DELETE',
+        entityType: 'Shipment',
         entityId: shipmentId,
-        description: "Shipment soft deleted",
+        description: 'Shipment soft deleted',
       },
     });
 

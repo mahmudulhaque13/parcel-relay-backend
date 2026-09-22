@@ -1,15 +1,11 @@
-import bcrypt from "bcryptjs";
-import httpStatus from "http-status-codes";
+import bcrypt from 'bcryptjs';
+import httpStatus from 'http-status-codes';
 
-import { ShipmentStatus } from "../../../generated/prisma/enums";
-import config from "../../config";
-import { prisma } from "../../lib/prisma";
-import { AppError } from "../../utils/AppError";
-import type {
-  IAssignCourier,
-  ICreateCourier,
-  ICourierShipmentQuery,
-} from "./courier.interface";
+import { ShipmentStatus } from '../../../generated/prisma/enums';
+import config from '../../config';
+import { prisma } from '../../lib/prisma';
+import { AppError } from '../../utils/AppError';
+import type { IAssignCourier, ICreateCourier, ICourierShipmentQuery } from './courier.interface';
 
 const createCourier = async (payload: ICreateCourier) => {
   const existingUser = await prisma.user.findUnique({
@@ -19,16 +15,10 @@ const createCourier = async (payload: ICreateCourier) => {
   });
 
   if (existingUser) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "User with this email already exists",
-    );
+    throw new AppError(httpStatus.CONFLICT, 'User with this email already exists');
   }
 
-  const hashedPassword = await bcrypt.hash(
-    payload.password,
-    Number(config.bcrypt_salt_rounds),
-  );
+  const hashedPassword = await bcrypt.hash(payload.password, Number(config.bcrypt_salt_rounds));
 
   const result = await prisma.$transaction(async (tx) => {
     const courier = await tx.user.create({
@@ -36,9 +26,9 @@ const createCourier = async (payload: ICreateCourier) => {
         name: payload.name,
         email: payload.email,
         password: hashedPassword,
-        role: "COURIER",
-        status: "ACTIVE",
-        authProvider: "CREDENTIAL",
+        role: 'COURIER',
+        status: 'ACTIVE',
+        authProvider: 'CREDENTIAL',
         emailVerified: false,
       },
     });
@@ -66,8 +56,8 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   const courier = await prisma.user.findFirst({
     where: {
       id: payload.courierId,
-      role: "COURIER",
-      status: "ACTIVE",
+      role: 'COURIER',
+      status: 'ACTIVE',
       isDeleted: false,
     },
     include: {
@@ -76,13 +66,13 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   });
 
   if (!courier) {
-    throw new AppError(httpStatus.NOT_FOUND, "Active courier not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Active courier not found');
   }
 
   const courierProfile = courier.courierProfile;
 
   if (!courierProfile) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Courier profile not found");
+    throw new AppError(httpStatus.BAD_REQUEST, 'Courier profile not found');
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -90,25 +80,22 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
       where: {
         id: payload.shipmentId,
         courierId: null,
-        status: "READY_FOR_ASSIGNMENT",
+        status: 'READY_FOR_ASSIGNMENT',
       },
       data: {
         courierId: courierProfile.id,
-        status: "ASSIGNED",
+        status: 'ASSIGNED',
       },
     });
 
     if (updatedShipment.count !== 1) {
-      throw new AppError(
-        httpStatus.CONFLICT,
-        "Shipment is no longer available for assignment",
-      );
+      throw new AppError(httpStatus.CONFLICT, 'Shipment is no longer available for assignment');
     }
 
     const shipmentEvent = await tx.shipmentEvent.create({
       data: {
         shipmentId: payload.shipmentId,
-        status: "ASSIGNED",
+        status: 'ASSIGNED',
         description: `Shipment assigned to courier ${courier.name}`,
       },
     });
@@ -116,8 +103,8 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
     await tx.auditLog.create({
       data: {
         userId: adminId,
-        action: "ASSIGN",
-        entityType: "Shipment",
+        action: 'ASSIGN',
+        entityType: 'Shipment',
         entityId: payload.shipmentId,
         description: `Shipment assigned to courier ${courier.name}`,
         metadata: {
@@ -130,7 +117,7 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
     return {
       shipmentId: payload.shipmentId,
       courierId: payload.courierId,
-      status: "ASSIGNED",
+      status: 'ASSIGNED',
       eventId: shipmentEvent.id,
     };
   });
@@ -138,11 +125,8 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   return result;
 };
 
-const getCourierShipments = async (
-  courierUserId: string,
-  query: ICourierShipmentQuery,
-) => {
-  const { page = 1, limit = 10, status, q, sortOrder = "desc" } = query;
+const getCourierShipments = async (courierUserId: string, query: ICourierShipmentQuery) => {
+  const { page = 1, limit = 10, status, q, sortOrder = 'desc' } = query;
 
   const courier = await prisma.courierProfile.findUnique({
     where: {
@@ -154,7 +138,7 @@ const getCourierShipments = async (
   });
 
   if (!courier) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Courier profile not found');
   }
 
   const skip = (page - 1) * limit;
@@ -170,13 +154,13 @@ const getCourierShipments = async (
         {
           trackingNumber: {
             contains: q,
-            mode: "insensitive" as const,
+            mode: 'insensitive' as const,
           },
         },
         {
           recipientName: {
             contains: q,
-            mode: "insensitive" as const,
+            mode: 'insensitive' as const,
           },
         },
       ],
@@ -213,10 +197,7 @@ const getCourierShipments = async (
   };
 };
 
-const getCourierShipmentById = async (
-  courierUserId: string,
-  shipmentId: string,
-) => {
+const getCourierShipmentById = async (courierUserId: string, shipmentId: string) => {
   const courier = await prisma.courierProfile.findUnique({
     where: {
       userId: courierUserId,
@@ -227,7 +208,7 @@ const getCourierShipmentById = async (
   });
 
   if (!courier) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
+    throw new AppError(httpStatus.NOT_FOUND, 'Courier profile not found');
   }
 
   const shipment = await prisma.shipment.findFirst({
@@ -242,22 +223,19 @@ const getCourierShipmentById = async (
       pickupRequest: true,
       transfers: {
         orderBy: {
-          createdAt: "asc",
+          createdAt: 'asc',
         },
       },
       events: {
         orderBy: {
-          createdAt: "asc",
+          createdAt: 'asc',
         },
       },
     },
   });
 
   if (!shipment) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Shipment not found or not assigned to you",
-    );
+    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found or not assigned to you');
   }
 
   return shipment;

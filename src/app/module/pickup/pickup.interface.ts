@@ -4,6 +4,6 @@ export interface ICreatePickup {
 }
 
 export interface IUpdatePickupStatus {
-  status: "SCHEDULED" | "PICKED_UP" | "FAILED" | "CANCELLED";
+  status: 'SCHEDULED' | 'PICKED_UP' | 'FAILED' | 'CANCELLED';
   notes?: string;
 }

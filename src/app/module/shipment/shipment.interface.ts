@@ -1,4 +1,4 @@
-import { ShipmentStatus } from "../../../generated/prisma/enums";
+import { ShipmentStatus } from '../../../generated/prisma/enums';
 
 export interface ICreateShipment {
   originZoneId: string;
@@ -38,6 +38,6 @@ export interface IShipmentQuery {
   limit?: number;
   status?: ShipmentStatus;
   q?: string;
-  sortBy?: "createdAt" | "updatedAt" | "deliveryCharge";
-  sortOrder?: "asc" | "desc";
+  sortBy?: 'createdAt' | 'updatedAt' | 'deliveryCharge';
+  sortOrder?: 'asc' | 'desc';
 }

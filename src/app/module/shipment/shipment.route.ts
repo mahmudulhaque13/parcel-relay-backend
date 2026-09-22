@@ -26,7 +26,7 @@ router.post(
   shipmentController.createShipment,
 );
 
-router.get("/my", auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
+router.get("/", auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
 
 router.get(
   "/:id/timeline",

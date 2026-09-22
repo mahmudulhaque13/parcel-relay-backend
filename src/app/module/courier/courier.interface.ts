@@ -15,5 +15,5 @@ export interface ICourierShipmentQuery {
   limit?: number;
   status?: string;
   q?: string;
-  sortOrder?: "asc" | "desc";
+  sortOrder?: 'asc' | 'desc';
 }

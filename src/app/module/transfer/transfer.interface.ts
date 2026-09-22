@@ -4,5 +4,5 @@ export interface ICreateTransfer {
 }
 
 export interface IUpdateTransferStatus {
-  status: "IN_TRANSIT" | "RECEIVED" | "CANCELLED";
+  status: 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED';
 }

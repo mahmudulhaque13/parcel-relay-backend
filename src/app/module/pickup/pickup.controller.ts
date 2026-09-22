@@ -1,26 +1,22 @@
-import type { Request, Response } from "express";
+import type { Request, Response } from 'express';
 
-import httpStatus from "http-status-codes";
+import httpStatus from 'http-status-codes';
 
-import { catchAsync } from "../../utils/catchAsync";
+import { catchAsync } from '../../utils/catchAsync';
 
-import { sendResponse } from "../../utils/sendResponse";
+import { sendResponse } from '../../utils/sendResponse';
 
-import { pickupService } from "./pickup.service";
+import { pickupService } from './pickup.service';
 
 const createPickup = catchAsync(async (req: Request, res: Response) => {
   const customerId = req.user!.id;
   const { id: shipmentId } = req.params;
 
-  const result = await pickupService.createPickup(
-    customerId,
-    shipmentId,
-    req.body,
-  );
+  const result = await pickupService.createPickup(customerId, shipmentId, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
-    message: "Pickup request created successfully",
+    message: 'Pickup request created successfully',
     data: result,
   });
 });
@@ -29,15 +25,11 @@ const updatePickupStatus = catchAsync(async (req: Request, res: Response) => {
   const actorId = req.user!.id;
   const { id: shipmentId } = req.params;
 
-  const result = await pickupService.updatePickupStatus(
-    actorId,
-    shipmentId,
-    req.body,
-  );
+  const result = await pickupService.updatePickupStatus(actorId, shipmentId, req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Pickup status updated successfully",
+    message: 'Pickup status updated successfully',
     data: result,
   });
 });
@@ -50,7 +42,7 @@ const getPickup = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Pickup request retrieved successfully",
+    message: 'Pickup request retrieved successfully',
     data: result,
   });
 });

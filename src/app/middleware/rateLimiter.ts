@@ -1,5 +1,5 @@
-import rateLimit from "express-rate-limit";
-import config from "../config";
+import rateLimit from 'express-rate-limit';
+import config from '../config';
 
 export const apiRateLimiter = rateLimit({
   windowMs: Number(config.rate_limit_window_ms),
@@ -8,7 +8,7 @@ export const apiRateLimiter = rateLimit({
   legacyHeaders: false,
   message: {
     success: false,
-    message: "Too many requests, please try again later.",
-    errors: [{ path: "", message: "Rate limit exceeded" }],
+    message: 'Too many requests, please try again later.',
+    errors: [{ path: '', message: 'Rate limit exceeded' }],
   },
 });

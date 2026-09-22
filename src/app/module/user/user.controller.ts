@@ -1,15 +1,15 @@
-import type { Request, Response } from "express";
-import httpStatus from "http-status-codes";
-import { catchAsync } from "../../utils/catchAsync";
-import { sendResponse } from "../../utils/sendResponse";
-import { userService } from "./user.service";
+import type { Request, Response } from 'express';
+import httpStatus from 'http-status-codes';
+import { catchAsync } from '../../utils/catchAsync';
+import { sendResponse } from '../../utils/sendResponse';
+import { userService } from './user.service';
 
 const getAllUsers = catchAsync(async (_req: Request, res: Response) => {
   const result = await userService.getAllUsers();
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Users retrieved successfully",
+    message: 'Users retrieved successfully',
     data: result,
   });
 });
@@ -19,7 +19,7 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Profile retrieved successfully",
+    message: 'Profile retrieved successfully',
     data: result,
   });
 });
@@ -29,7 +29,7 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Profile updated successfully",
+    message: 'Profile updated successfully',
     data: result,
   });
 });

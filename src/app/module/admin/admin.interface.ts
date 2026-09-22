@@ -10,3 +10,8 @@ export interface IAdminUserQuery {
   q?: string;
   sortOrder?: "asc" | "desc";
 }
+
+export interface IUpdateUserRole {
+  role: "CUSTOMER" | "COURIER" | "ADMIN";
+  phone?: string;
+}

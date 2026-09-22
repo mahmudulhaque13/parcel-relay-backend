@@ -23,4 +23,11 @@ router.get(
   adminController.getAdminUserById,
 );
 
+router.patch(
+  "/users/:id/role",
+  auth(UserRole.ADMIN),
+  validateRequest(adminValidation.updateUserRoleValidation),
+  adminController.updateUserRole,
+);
+
 export const adminRoutes = router;

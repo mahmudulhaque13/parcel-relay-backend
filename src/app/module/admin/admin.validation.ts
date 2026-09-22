@@ -17,7 +17,13 @@ const adminUserQueryValidation = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
+const updateUserRoleValidation = z.object({
+  role: z.enum(["CUSTOMER", "COURIER", "ADMIN"]),
+  phone: z.string().min(7, "Invalid phone number").optional(),
+});
+
 export const adminValidation = {
   reassignCourierValidation,
   adminUserQueryValidation,
+  updateUserRoleValidation,
 };

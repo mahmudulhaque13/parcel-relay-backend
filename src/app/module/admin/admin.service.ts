@@ -2,7 +2,11 @@ import httpStatus from "http-status-codes";
 
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
-import type { IAdminUserQuery, IReassignCourier } from "./admin.interface";
+import type {
+  IAdminUserQuery,
+  IReassignCourier,
+  IUpdateUserRole,
+} from "./admin.interface";
 
 const reassignCourier = async (
   adminId: string,
@@ -216,8 +220,94 @@ const getAdminUserById = async (userId: string) => {
   return user;
 };
 
+const updateUserRole = async (
+  adminId: string,
+  userId: string,
+  payload: IUpdateUserRole,
+) => {
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      courierProfile: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  if (user.role === payload.role) {
+    throw new AppError(httpStatus.CONFLICT, "User already has this role");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    if (payload.role === "COURIER" && !user.courierProfile) {
+      if (!payload.phone) {
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          "Phone number is required when changing role to COURIER",
+        );
+      }
+
+      await tx.courierProfile.create({
+        data: {
+          userId: user.id,
+          phone: payload.phone,
+        },
+      });
+    }
+
+    const updatedUser = await tx.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        role: payload.role,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        userId: adminId,
+        action: "UPDATE",
+        entityType: "User",
+        entityId: userId,
+        description: `User role changed from ${user.role} to ${payload.role}`,
+        metadata: {
+          previousRole: user.role,
+          newRole: payload.role,
+        },
+      },
+    });
+
+    return updatedUser;
+  });
+
+  return result;
+};
+
 export const adminService = {
   reassignCourier,
   getAdminUsers,
   getAdminUserById,
+  updateUserRole,
 };

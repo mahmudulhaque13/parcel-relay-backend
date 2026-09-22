@@ -17,4 +17,10 @@ router.post(
 
 router.get("/users", auth(UserRole.ADMIN), adminController.getAdminUsers);
 
+router.get(
+  "/users/:id",
+  auth(UserRole.ADMIN),
+  adminController.getAdminUserById,
+);
+
 export const adminRoutes = router;

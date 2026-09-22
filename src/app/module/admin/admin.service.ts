@@ -186,7 +186,38 @@ const getAdminUsers = async (query: IAdminUserQuery) => {
   };
 };
 
+const getAdminUserById = async (userId: string) => {
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      authProvider: true,
+      emailVerified: true,
+      imageUrl: true,
+      isDeleted: true,
+      deletedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      courierProfile: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  return user;
+};
+
 export const adminService = {
   reassignCourier,
   getAdminUsers,
+  getAdminUserById,
 };

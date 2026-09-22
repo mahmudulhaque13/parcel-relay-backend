@@ -37,7 +37,20 @@ const getAdminUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAdminUserById = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await adminService.getAdminUserById(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Admin user retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   reassignCourier,
   getAdminUsers,
+  getAdminUserById,
 };

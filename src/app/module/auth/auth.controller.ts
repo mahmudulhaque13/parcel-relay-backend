@@ -1,17 +1,18 @@
-import type { Request, Response } from 'express';
-import httpStatus from 'http-status-codes';
+import type { Request, Response } from "express";
+import httpStatus from "http-status-codes";
 
-import config from '../../config';
-import { catchAsync } from '../../utils/catchAsync';
-import { sendResponse } from '../../utils/sendResponse';
+import config from "../../config";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
 
-import { authService } from './auth.service';
+import { authService } from "./auth.service";
 
 const refreshCookieOptions = {
   httpOnly: true,
-  secure: config.node_env === 'production',
-  sameSite: config.node_env === 'production' ? ('none' as const) : ('lax' as const),
-  path: '/api/v1/auth',
+  secure: config.node_env === "production",
+  sameSite:
+    config.node_env === "production" ? ("none" as const) : ("lax" as const),
+  path: "/api/v1/auth",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
@@ -20,7 +21,7 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
-    message: 'User registered successfully',
+    message: "User registered successfully",
     data: result,
   });
 });
@@ -28,13 +29,13 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.loginUser(req.body);
 
-  res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
+  res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
 
   const { refreshToken, ...responseData } = result;
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'User logged in successfully',
+    message: "User logged in successfully",
     data: responseData,
   });
 });
@@ -42,13 +43,13 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 const googleLogin = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.googleLogin(req.body);
 
-  res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
+  res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
 
   const { refreshToken, ...responseData } = result;
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Google login successful',
+    message: "Google login successful",
     data: responseData,
   });
 });
@@ -59,7 +60,7 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
   if (!token) {
     sendResponse(res, {
       statusCode: httpStatus.UNAUTHORIZED,
-      message: 'Refresh token is missing',
+      message: "Refresh token is missing",
       data: null,
     });
 
@@ -70,7 +71,7 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Access token refreshed successfully',
+    message: "Access token refreshed successfully",
     data: result,
   });
 });
@@ -82,11 +83,11 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
     await authService.logoutUser(token);
   }
 
-  res.clearCookie('refreshToken', refreshCookieOptions);
+  res.clearCookie("refreshToken", refreshCookieOptions);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'User logged out successfully',
+    message: "User logged out successfully",
     data: null,
   });
 });
@@ -94,7 +95,7 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
 const getMe = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'User retrieved successfully',
+    message: "User retrieved successfully",
     data: req.user,
   });
 });
@@ -102,9 +103,9 @@ const getMe = catchAsync(async (req: Request, res: Response) => {
 const adminTest = catchAsync(async (_req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Admin authorization successful',
+    message: "Admin authorization successful",
     data: {
-      message: 'Only ADMIN can access this resource',
+      message: "Only ADMIN can access this resource",
     },
   });
 });

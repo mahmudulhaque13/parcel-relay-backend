@@ -1,18 +1,22 @@
-import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-import httpStatus from 'http-status-codes';
-import { SignOptions } from 'jsonwebtoken';
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import httpStatus from "http-status-codes";
+import { SignOptions } from "jsonwebtoken";
 
-import config from '../../config';
-import { googleClient } from '../../lib/googleAuth';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../utils/AppError';
-import { jwtUtils } from '../../utils/jwt';
+import config from "../../config";
+import { googleClient } from "../../lib/googleAuth";
+import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/AppError";
+import { jwtUtils } from "../../utils/jwt";
 
-import type { IGoogleLoginPayload, ILoginUser, IRegisterUser } from './auth.interface';
+import type {
+  IGoogleLoginPayload,
+  ILoginUser,
+  IRegisterUser,
+} from "./auth.interface";
 
-const hashRefreshToken = (token: string) => {
-  return crypto.createHash('sha256').update(token).digest('hex');
+const hashRefreshToken = (token: string): string => {
+  return crypto.createHash("sha256").update(token).digest("hex");
 };
 
 const createRefreshSession = async (user: {
@@ -27,7 +31,7 @@ const createRefreshSession = async (user: {
       role: user.role,
     },
     config.jwt_access_secret,
-    config.jwt_access_expires_in as SignOptions['expiresIn'],
+    config.jwt_access_expires_in as SignOptions["expiresIn"],
   );
 
   const refreshToken = jwtUtils.createToken(
@@ -37,7 +41,7 @@ const createRefreshSession = async (user: {
       role: user.role,
     },
     config.jwt_refresh_secret,
-    config.jwt_refresh_expires_in as SignOptions['expiresIn'],
+    config.jwt_refresh_expires_in as SignOptions["expiresIn"],
   );
 
   const refreshTokenHash = hashRefreshToken(refreshToken);
@@ -67,18 +71,24 @@ const registerUser = async (payload: IRegisterUser) => {
   });
 
   if (existingUser) {
-    throw new AppError(httpStatus.CONFLICT, 'User already exists');
+    throw new AppError(httpStatus.CONFLICT, "User already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(payload.password, Number(config.bcrypt_salt_rounds));
+  const hashedPassword = await bcrypt.hash(
+    payload.password,
+    Number(config.bcrypt_salt_rounds),
+  );
 
   const user = await prisma.user.create({
     data: {
       name: payload.name,
       email: payload.email,
       password: hashedPassword,
-      authProvider: 'CREDENTIAL',
-      role: 'CUSTOMER',
+      authProvider: "CREDENTIAL",
+      role: "CUSTOMER",
+
+      // OTP/email verification is not part of the mandatory flow.
+      emailVerified: true,
     },
     select: {
       id: true,
@@ -104,21 +114,27 @@ const loginUser = async (payload: ILoginUser) => {
   });
 
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
   }
 
   if (!user.password) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Please use your social login method');
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Please use your social login method",
+    );
   }
 
-  const isPasswordMatched = await bcrypt.compare(payload.password, user.password);
+  const isPasswordMatched = await bcrypt.compare(
+    payload.password,
+    user.password,
+  );
 
   if (!isPasswordMatched) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid password');
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid password");
   }
 
-  if (user.status !== 'ACTIVE' || user.isDeleted) {
-    throw new AppError(httpStatus.FORBIDDEN, 'User account is not active');
+  if (user.status !== "ACTIVE" || user.isDeleted) {
+    throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
   }
 
   const tokens = await createRefreshSession({
@@ -148,17 +164,26 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
   const googlePayload = ticket.getPayload();
 
   if (!googlePayload) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid Google ID token');
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Google ID token");
   }
 
-  const { sub: googleId, email, email_verified: emailVerified, name, picture } = googlePayload;
+  const {
+    sub: googleId,
+    email,
+    email_verified: emailVerified,
+    name,
+    picture,
+  } = googlePayload;
 
   if (!googleId || !email) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Google account information is incomplete');
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Google account information is incomplete",
+    );
   }
 
   if (!emailVerified) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Google email is not verified');
+    throw new AppError(httpStatus.UNAUTHORIZED, "Google email is not verified");
   }
 
   let user = await prisma.user.findUnique({
@@ -178,7 +203,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
       if (user.googleId && user.googleId !== googleId) {
         throw new AppError(
           httpStatus.CONFLICT,
-          'This email is already linked with another Google account',
+          "This email is already linked with another Google account",
         );
       }
 
@@ -188,7 +213,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
         },
         data: {
           googleId,
-          authProvider: 'GOOGLE',
+          authProvider: "GOOGLE",
           emailVerified: true,
           ...(user.imageUrl || picture
             ? {
@@ -200,24 +225,24 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
     } else {
       user = await prisma.user.create({
         data: {
-          name: name || email.split('@')[0],
+          name: name || email.split("@")[0],
           email,
           googleId,
-          authProvider: 'GOOGLE',
+          authProvider: "GOOGLE",
           emailVerified: true,
           ...(picture
             ? {
                 imageUrl: picture,
               }
             : {}),
-          role: 'CUSTOMER',
+          role: "CUSTOMER",
         },
       });
     }
   }
 
-  if (user.status !== 'ACTIVE' || user.isDeleted) {
-    throw new AppError(httpStatus.FORBIDDEN, 'User account is not active');
+  if (user.status !== "ACTIVE" || user.isDeleted) {
+    throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
   }
 
   const tokens = await createRefreshSession({
@@ -242,7 +267,10 @@ const refreshAccessToken = async (token: string) => {
   const verifiedToken = jwtUtils.verifyToken(token, config.jwt_refresh_secret);
 
   if (!verifiedToken.success) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired refresh token');
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Invalid or expired refresh token",
+    );
   }
 
   const decoded = verifiedToken.data as {
@@ -260,15 +288,18 @@ const refreshAccessToken = async (token: string) => {
   });
 
   if (!session) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Refresh session not found');
+    throw new AppError(httpStatus.UNAUTHORIZED, "Refresh session not found");
   }
 
   if (session.revokedAt) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Refresh token has been revoked');
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Refresh token has been revoked",
+    );
   }
 
   if (session.expiresAt < new Date()) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'Refresh token has expired');
+    throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token has expired");
   }
 
   const user = await prisma.user.findUnique({
@@ -277,8 +308,8 @@ const refreshAccessToken = async (token: string) => {
     },
   });
 
-  if (!user || user.status !== 'ACTIVE' || user.isDeleted) {
-    throw new AppError(httpStatus.UNAUTHORIZED, 'User account is not active');
+  if (!user || user.status !== "ACTIVE" || user.isDeleted) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "User account is not active");
   }
 
   const accessToken = jwtUtils.createToken(
@@ -288,7 +319,7 @@ const refreshAccessToken = async (token: string) => {
       role: user.role,
     },
     config.jwt_access_secret,
-    config.jwt_access_expires_in as SignOptions['expiresIn'],
+    config.jwt_access_expires_in as SignOptions["expiresIn"],
   );
 
   return {
@@ -306,11 +337,11 @@ const logoutUser = async (token: string) => {
   });
 
   if (!session) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Refresh session not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Refresh session not found");
   }
 
   if (session.revokedAt) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User already logged out');
+    throw new AppError(httpStatus.BAD_REQUEST, "User already logged out");
   }
 
   await prisma.refreshSession.update({

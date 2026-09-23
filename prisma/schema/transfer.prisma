@@ -14,9 +14,10 @@ model ShipmentTransfer {
   fromHub  Hub?     @relation("FromHubTransfers", fields: [fromHubId], references: [id], onDelete: Restrict)
   toHub    Hub?     @relation("ToHubTransfers", fields: [toHubId], references: [id], onDelete: Restrict)
 
-  @@index([shipmentId])
-  @@index([fromHubId])
-  @@index([toHubId])
+  @@index([shipmentId, createdAt])
+  @@index([fromHubId, status])
+  @@index([toHubId, status])
   @@index([status])
+
   @@map("shipment_transfers")
 }

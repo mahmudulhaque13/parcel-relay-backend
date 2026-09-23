@@ -12,7 +12,8 @@ model PaymentAttempt {
 
   shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
-  @@index([shipmentId])
+  @@index([shipmentId, status])
   @@index([status])
+
   @@map("payment_attempts")
 }

@@ -8,8 +8,8 @@ model ShipmentEvent {
 
   shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
-  @@index([shipmentId])
+  @@index([shipmentId, createdAt])
   @@index([status])
-  @@index([createdAt])
+
   @@map("shipment_events")
 }

@@ -10,9 +10,10 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
+  @@index([userId, createdAt])
   @@index([action])
   @@index([entityType, entityId])
   @@index([createdAt])
+
   @@map("audit_logs")
 }

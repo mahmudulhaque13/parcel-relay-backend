@@ -20,10 +20,8 @@ model Shipment {
   status            ShipmentStatus @default(PENDING_PAYMENT)
   paymentStatus     PaymentStatus  @default(PENDING)
 
-
-
-isDeleted     Boolean        @default(false)
-deletedAt     DateTime?
+  isDeleted         Boolean        @default(false)
+  deletedAt         DateTime?
 
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -31,27 +29,28 @@ deletedAt     DateTime?
   customer          User           @relation("CustomerShipments", fields: [customerId], references: [id], onDelete: Restrict)
   originZone        Zone           @relation("OriginZoneShipments", fields: [originZoneId], references: [id], onDelete: Restrict)
   destinationZone   Zone           @relation("DestinationZoneShipments", fields: [destinationZoneId], references: [id], onDelete: Restrict)
-  pricingRule PricingRule? @relation("PricingRuleShipments", fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  pricingRule       PricingRule?   @relation("PricingRuleShipments", fields: [pricingRuleId], references: [id], onDelete: SetNull)
 
-  pickupRequest PickupRequest?
+  pickupRequest     PickupRequest?
 
-  transfers ShipmentTransfer[]
+  transfers         ShipmentTransfer[]
 
-  events ShipmentEvent[]
+  events            ShipmentEvent[]
 
-  paymentAttempts PaymentAttempt[]
+  paymentAttempts   PaymentAttempt[]
 
-  courierId String?
+  courierId         String?
 
-  courier CourierProfile? @relation("CourierShipments", fields: [courierId], references: [id], onDelete: SetNull)
+  courier           CourierProfile? @relation("CourierShipments", fields: [courierId], references: [id], onDelete: SetNull)
 
+  @@index([customerId, status, createdAt])
+  @@index([courierId, status])
+  @@index([originZoneId, destinationZoneId])
+  @@index([status, createdAt])
   @@index([pricingRuleId])
-  @@index([courierId])
-  @@index([customerId])
   @@index([originZoneId])
   @@index([destinationZoneId])
-  @@index([status])
   @@index([paymentStatus])
+
   @@map("shipments")
-  
 }

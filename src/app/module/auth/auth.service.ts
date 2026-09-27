@@ -2,6 +2,8 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import httpStatus from "http-status-codes";
 import { SignOptions } from "jsonwebtoken";
+import { emailUtils } from "../../utils/email";
+import { otpUtils } from "../../utils/otp";
 
 import config from "../../config";
 import { googleClient } from "../../lib/googleAuth";
@@ -10,9 +12,13 @@ import { AppError } from "../../utils/AppError";
 import { jwtUtils } from "../../utils/jwt";
 
 import type {
+  IForgotPassword,
   IGoogleLoginPayload,
   ILoginUser,
   IRegisterUser,
+  IResendVerification,
+  IResetPassword,
+  IVerifyEmail,
 } from "./auth.interface";
 
 const hashRefreshToken = (token: string): string => {
@@ -71,6 +77,29 @@ const registerUser = async (payload: IRegisterUser) => {
   });
 
   if (existingUser) {
+    if (!existingUser.emailVerified) {
+      const otp = otpUtils.generateOtp();
+
+      await otpUtils.saveOtp(existingUser.email, "EMAIL_VERIFICATION", otp);
+
+      await emailUtils.sendOtpEmail(
+        existingUser.email,
+        otp,
+        "Email Verification",
+      );
+
+      return {
+        message:
+          "This email is already registered but not verified. A new OTP has been sent.",
+        user: {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          emailVerified: existingUser.emailVerified,
+        },
+      };
+    }
+
     throw new AppError(httpStatus.CONFLICT, "User already exists");
   }
 
@@ -86,9 +115,7 @@ const registerUser = async (payload: IRegisterUser) => {
       password: hashedPassword,
       authProvider: "CREDENTIAL",
       role: "CUSTOMER",
-
-      // OTP/email verification is not part of the mandatory flow.
-      emailVerified: true,
+      emailVerified: false,
     },
     select: {
       id: true,
@@ -103,7 +130,216 @@ const registerUser = async (payload: IRegisterUser) => {
     },
   });
 
-  return user;
+  const otp = otpUtils.generateOtp();
+
+  await otpUtils.saveOtp(user.email, "EMAIL_VERIFICATION", otp);
+
+  await emailUtils.sendOtpEmail(user.email, otp, "Email Verification");
+
+  return {
+    message:
+      "Registration successful. Please verify your email with the OTP sent to your email.",
+    user,
+  };
+};
+
+const verifyEmail = async (payload: IVerifyEmail) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email: payload.email,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  if (user.emailVerified) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Email is already verified");
+  }
+
+  const otpResult = await otpUtils.verifyOtp(
+    payload.email,
+    "EMAIL_VERIFICATION",
+    payload.otp,
+  );
+
+  if (otpResult === "NOT_FOUND") {
+    throw new AppError(httpStatus.BAD_REQUEST, "OTP is expired or invalid");
+  }
+
+  if (otpResult === "INVALID") {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid OTP");
+  }
+
+  if (otpResult === "MAX_ATTEMPTS") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Maximum OTP attempts exceeded. Please request a new OTP.",
+    );
+  }
+
+  const verifiedUser = await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      emailVerified: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      emailVerified: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  await otpUtils.deleteOtp(payload.email, "EMAIL_VERIFICATION");
+
+  return verifiedUser;
+};
+
+const resendVerification = async (payload: IResendVerification) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email: payload.email,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  if (user.emailVerified) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Email is already verified");
+  }
+
+  const otp = otpUtils.generateOtp();
+
+  await otpUtils.saveOtp(user.email, "EMAIL_VERIFICATION", otp);
+
+  await emailUtils.sendOtpEmail(user.email, otp, "Email Verification");
+
+  return {
+    email: user.email,
+    message: "A new verification OTP has been sent to your email",
+  };
+};
+
+const forgotPassword = async (payload: IForgotPassword) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email: payload.email,
+    },
+  });
+
+  // Do not reveal whether the email exists.
+  if (!user) {
+    return {
+      email: payload.email,
+    };
+  }
+
+  if (user.isDeleted || user.status === "BLOCKED") {
+    return {
+      email: payload.email,
+    };
+  }
+
+  if (!user.password) {
+    return {
+      email: payload.email,
+    };
+  }
+
+  const otp = otpUtils.generateOtp();
+
+  await otpUtils.saveOtp(user.email, "PASSWORD_RESET", otp);
+
+  await emailUtils.sendOtpEmail(user.email, otp, "Password Reset");
+
+  return {
+    email: user.email,
+  };
+};
+
+const resetPassword = async (payload: IResetPassword) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email: payload.email,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Invalid password reset request",
+    );
+  }
+
+  if (user.isDeleted || user.status !== "ACTIVE") {
+    throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
+  }
+
+  const otpResult = await otpUtils.verifyOtp(
+    payload.email,
+    "PASSWORD_RESET",
+    payload.otp,
+  );
+
+  if (otpResult === "NOT_FOUND") {
+    throw new AppError(httpStatus.BAD_REQUEST, "OTP is expired or invalid");
+  }
+
+  if (otpResult === "INVALID") {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid OTP");
+  }
+
+  if (otpResult === "MAX_ATTEMPTS") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Maximum OTP attempts exceeded. Please request a new OTP.",
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(
+    payload.newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        password: hashedPassword,
+        authProvider: "CREDENTIAL",
+      },
+    }),
+
+    // Invalidate existing refresh sessions after password reset.
+    prisma.refreshSession.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    }),
+  ]);
+
+  await otpUtils.deleteOtp(payload.email, "PASSWORD_RESET");
+
+  return {
+    email: user.email,
+    message: "Password reset successfully",
+  };
 };
 
 const loginUser = async (payload: ILoginUser) => {
@@ -121,6 +357,13 @@ const loginUser = async (payload: ILoginUser) => {
     throw new AppError(
       httpStatus.UNAUTHORIZED,
       "Please use your social login method",
+    );
+  }
+
+  if (!user.emailVerified) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Please verify your email before logging in",
     );
   }
 
@@ -150,6 +393,7 @@ const loginUser = async (payload: ILoginUser) => {
       email: user.email,
       role: user.role,
       status: user.status,
+      emailVerified: user.emailVerified,
     },
     ...tokens,
   };
@@ -356,6 +600,10 @@ const logoutUser = async (token: string) => {
 
 export const authService = {
   registerUser,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
   loginUser,
   googleLogin,
   refreshAccessToken,

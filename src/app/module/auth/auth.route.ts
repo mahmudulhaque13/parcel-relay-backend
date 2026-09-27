@@ -17,6 +17,30 @@ router.post(
 );
 
 router.post(
+  "/verify-email",
+  validateRequest(authValidation.verifyEmailValidation),
+  authController.verifyEmail,
+);
+
+router.post(
+  "/resend-verification",
+  validateRequest(authValidation.resendVerificationValidation),
+  authController.resendVerification,
+);
+
+router.post(
+  "/forgot-password",
+  validateRequest(authValidation.forgotPasswordValidation),
+  authController.forgotPassword,
+);
+
+router.post(
+  "/reset-password",
+  validateRequest(authValidation.resetPasswordValidation),
+  authController.resetPassword,
+);
+
+router.post(
   "/login",
   validateRequest(authValidation.loginValidation),
   authController.loginUser,

@@ -12,3 +12,22 @@ export interface ILoginUser {
 export interface IGoogleLoginPayload {
   idToken: string;
 }
+
+export interface IVerifyEmail {
+  email: string;
+  otp: string;
+}
+
+export interface IForgotPassword {
+  email: string;
+}
+
+export interface IResetPassword {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
+export interface IResendVerification {
+  email: string;
+}

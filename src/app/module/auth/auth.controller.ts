@@ -26,6 +26,46 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const verifyEmail = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.verifyEmail(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Email verified successfully",
+    data: result,
+  });
+});
+
+const resendVerification = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.resendVerification(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Verification OTP sent successfully",
+    data: result,
+  });
+});
+
+const forgotPassword = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.forgotPassword(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "If the email exists, a password reset OTP has been sent",
+    data: result,
+  });
+});
+
+const resetPassword = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.resetPassword(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Password reset successfully",
+    data: result,
+  });
+});
+
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.loginUser(req.body);
 
@@ -112,6 +152,10 @@ const adminTest = catchAsync(async (_req: Request, res: Response) => {
 
 export const authController = {
   registerUser,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
   loginUser,
   googleLogin,
   refreshToken,

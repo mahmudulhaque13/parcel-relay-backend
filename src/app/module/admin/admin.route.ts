@@ -9,6 +9,13 @@ import { adminValidation } from "./admin.validation";
 const router = Router();
 
 router.post(
+  "/",
+  auth(UserRole.ADMIN),
+  validateRequest(adminValidation.createAdminValidation),
+  adminController.createAdmin,
+);
+
+router.post(
   "/shipments/:id/reassign",
   auth(UserRole.ADMIN),
   validateRequest(adminValidation.reassignCourierValidation),

@@ -1,11 +1,21 @@
-import bcrypt from 'bcryptjs';
-import httpStatus from 'http-status-codes';
+import bcrypt from "bcryptjs";
+import httpStatus from "http-status-codes";
 
-import { ShipmentStatus } from '../../../generated/prisma/enums';
-import config from '../../config';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../utils/AppError';
-import type { IAssignCourier, ICreateCourier, ICourierShipmentQuery } from './courier.interface';
+import { ShipmentStatus } from "../../../generated/prisma/enums";
+
+import config from "../../config";
+import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/AppError";
+import { emailUtils } from "../../utils/email";
+import { otpUtils } from "../../utils/otp";
+
+import type {
+  IAssignCourier,
+  ICreateCourier,
+  ICourierShipmentQuery,
+  IReviewCourierApplication,
+  IVerifyCourierEmail,
+} from "./courier.interface";
 
 const createCourier = async (payload: ICreateCourier) => {
   const existingUser = await prisma.user.findUnique({
@@ -15,10 +25,16 @@ const createCourier = async (payload: ICreateCourier) => {
   });
 
   if (existingUser) {
-    throw new AppError(httpStatus.CONFLICT, 'User with this email already exists');
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "User with this email already exists",
+    );
   }
 
-  const hashedPassword = await bcrypt.hash(payload.password, Number(config.bcrypt_salt_rounds));
+  const hashedPassword = await bcrypt.hash(
+    payload.password,
+    Number(config.bcrypt_salt_rounds),
+  );
 
   const result = await prisma.$transaction(async (tx) => {
     const courier = await tx.user.create({
@@ -26,9 +42,9 @@ const createCourier = async (payload: ICreateCourier) => {
         name: payload.name,
         email: payload.email,
         password: hashedPassword,
-        role: 'COURIER',
-        status: 'ACTIVE',
-        authProvider: 'CREDENTIAL',
+        role: "COURIER",
+        status: "ACTIVE",
+        authProvider: "CREDENTIAL",
         emailVerified: false,
       },
     });
@@ -52,12 +68,222 @@ const createCourier = async (payload: ICreateCourier) => {
   };
 };
 
+const applyCourier = async (payload: ICreateCourier) => {
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      email: payload.email,
+    },
+  });
+
+  if (existingUser) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "User with this email already exists",
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(
+    payload.password,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  const result = await prisma.$transaction(async (tx) => {
+    const courier = await tx.user.create({
+      data: {
+        name: payload.name,
+        email: payload.email,
+        password: hashedPassword,
+        role: "COURIER",
+        status: "INACTIVE",
+        authProvider: "CREDENTIAL",
+        emailVerified: false,
+      },
+    });
+
+    await tx.courierProfile.create({
+      data: {
+        userId: courier.id,
+        phone: payload.phone,
+        applicationStatus: "PENDING",
+      },
+    });
+
+    return courier;
+  });
+
+  const otp = otpUtils.generateOtp();
+
+  await otpUtils.saveOtp(result.email, "COURIER_EMAIL_VERIFICATION", otp);
+
+  await emailUtils.sendOtpEmail(
+    result.email,
+    otp,
+    "Courier Email Verification",
+  );
+
+  return {
+    id: result.id,
+    name: result.name,
+    email: result.email,
+    role: result.role,
+    status: result.status,
+    applicationStatus: "PENDING",
+  };
+};
+
+const verifyCourierEmail = async (payload: IVerifyCourierEmail) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email: payload.email,
+    },
+    include: {
+      courierProfile: true,
+    },
+  });
+
+  if (!user || user.role !== "COURIER" || !user.courierProfile) {
+    throw new AppError(httpStatus.NOT_FOUND, "Courier application not found");
+  }
+
+  if (user.emailVerified) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Courier email is already verified",
+    );
+  }
+
+  const otpResult = await otpUtils.verifyOtp(
+    user.email,
+    "COURIER_EMAIL_VERIFICATION",
+    payload.otp,
+  );
+
+  if (otpResult === "NOT_FOUND") {
+    throw new AppError(httpStatus.BAD_REQUEST, "OTP is expired or invalid");
+  }
+
+  if (otpResult === "INVALID") {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid OTP");
+  }
+
+  if (otpResult === "MAX_ATTEMPTS") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Maximum OTP attempts exceeded. Please request a new OTP.",
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedUser = await tx.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        emailVerified: true,
+      },
+    });
+
+    await tx.courierProfile.update({
+      where: {
+        userId: user.id,
+      },
+      data: {
+        applicationStatus: "PENDING",
+      },
+    });
+
+    return updatedUser;
+  });
+
+  await otpUtils.deleteOtp(user.email, "COURIER_EMAIL_VERIFICATION");
+
+  return {
+    id: result.id,
+    name: result.name,
+    email: result.email,
+    role: result.role,
+    status: result.status,
+    emailVerified: result.emailVerified,
+    applicationStatus: "PENDING",
+  };
+};
+
+const reviewCourierApplication = async (
+  courierId: string,
+  payload: IReviewCourierApplication,
+) => {
+  const courier = await prisma.user.findUnique({
+    where: {
+      id: courierId,
+    },
+    include: {
+      courierProfile: true,
+    },
+  });
+
+  if (!courier || courier.role !== "COURIER" || !courier.courierProfile) {
+    throw new AppError(httpStatus.NOT_FOUND, "Courier application not found");
+  }
+
+  if (courier.courierProfile.applicationStatus !== "PENDING") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Courier application has already been reviewed",
+    );
+  }
+
+  if (!courier.emailVerified) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Courier email must be verified before approval",
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const applicationStatus =
+      payload.action === "APPROVE" ? "APPROVED" : "REJECTED";
+
+    const userStatus = payload.action === "APPROVE" ? "ACTIVE" : "INACTIVE";
+
+    await tx.courierProfile.update({
+      where: {
+        userId: courier.id,
+      },
+      data: {
+        applicationStatus,
+        isVerified: payload.action === "APPROVE",
+      },
+    });
+
+    const updatedUser = await tx.user.update({
+      where: {
+        id: courier.id,
+      },
+      data: {
+        status: userStatus,
+      },
+    });
+
+    return updatedUser;
+  });
+
+  return {
+    id: result.id,
+    name: result.name,
+    email: result.email,
+    role: result.role,
+    status: result.status,
+    emailVerified: result.emailVerified,
+    applicationStatus: payload.action === "APPROVE" ? "APPROVED" : "REJECTED",
+  };
+};
+
 const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   const courier = await prisma.user.findFirst({
     where: {
       id: payload.courierId,
-      role: 'COURIER',
-      status: 'ACTIVE',
+      role: "COURIER",
+      status: "ACTIVE",
       isDeleted: false,
     },
     include: {
@@ -66,13 +292,13 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   });
 
   if (!courier) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Active courier not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Active courier not found");
   }
 
   const courierProfile = courier.courierProfile;
 
   if (!courierProfile) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Courier profile not found');
+    throw new AppError(httpStatus.BAD_REQUEST, "Courier profile not found");
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -80,22 +306,25 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
       where: {
         id: payload.shipmentId,
         courierId: null,
-        status: 'READY_FOR_ASSIGNMENT',
+        status: "READY_FOR_ASSIGNMENT",
       },
       data: {
         courierId: courierProfile.id,
-        status: 'ASSIGNED',
+        status: "ASSIGNED",
       },
     });
 
     if (updatedShipment.count !== 1) {
-      throw new AppError(httpStatus.CONFLICT, 'Shipment is no longer available for assignment');
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Shipment is no longer available for assignment",
+      );
     }
 
     const shipmentEvent = await tx.shipmentEvent.create({
       data: {
         shipmentId: payload.shipmentId,
-        status: 'ASSIGNED',
+        status: "ASSIGNED",
         description: `Shipment assigned to courier ${courier.name}`,
       },
     });
@@ -103,8 +332,8 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
     await tx.auditLog.create({
       data: {
         userId: adminId,
-        action: 'ASSIGN',
-        entityType: 'Shipment',
+        action: "ASSIGN",
+        entityType: "Shipment",
         entityId: payload.shipmentId,
         description: `Shipment assigned to courier ${courier.name}`,
         metadata: {
@@ -117,7 +346,7 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
     return {
       shipmentId: payload.shipmentId,
       courierId: payload.courierId,
-      status: 'ASSIGNED',
+      status: "ASSIGNED",
       eventId: shipmentEvent.id,
     };
   });
@@ -125,8 +354,11 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   return result;
 };
 
-const getCourierShipments = async (courierUserId: string, query: ICourierShipmentQuery) => {
-  const { page = 1, limit = 10, status, q, sortOrder = 'desc' } = query;
+const getCourierShipments = async (
+  courierUserId: string,
+  query: ICourierShipmentQuery,
+) => {
+  const { page = 1, limit = 10, status, q, sortOrder = "desc" } = query;
 
   const courier = await prisma.courierProfile.findUnique({
     where: {
@@ -138,7 +370,7 @@ const getCourierShipments = async (courierUserId: string, query: ICourierShipmen
   });
 
   if (!courier) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Courier profile not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
   }
 
   const skip = (page - 1) * limit;
@@ -154,13 +386,13 @@ const getCourierShipments = async (courierUserId: string, query: ICourierShipmen
         {
           trackingNumber: {
             contains: q,
-            mode: 'insensitive' as const,
+            mode: "insensitive" as const,
           },
         },
         {
           recipientName: {
             contains: q,
-            mode: 'insensitive' as const,
+            mode: "insensitive" as const,
           },
         },
       ],
@@ -197,7 +429,10 @@ const getCourierShipments = async (courierUserId: string, query: ICourierShipmen
   };
 };
 
-const getCourierShipmentById = async (courierUserId: string, shipmentId: string) => {
+const getCourierShipmentById = async (
+  courierUserId: string,
+  shipmentId: string,
+) => {
   const courier = await prisma.courierProfile.findUnique({
     where: {
       userId: courierUserId,
@@ -208,7 +443,7 @@ const getCourierShipmentById = async (courierUserId: string, shipmentId: string)
   });
 
   if (!courier) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Courier profile not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Courier profile not found");
   }
 
   const shipment = await prisma.shipment.findFirst({
@@ -223,19 +458,22 @@ const getCourierShipmentById = async (courierUserId: string, shipmentId: string)
       pickupRequest: true,
       transfers: {
         orderBy: {
-          createdAt: 'asc',
+          createdAt: "asc",
         },
       },
       events: {
         orderBy: {
-          createdAt: 'asc',
+          createdAt: "asc",
         },
       },
     },
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found or not assigned to you');
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "Shipment not found or not assigned to you",
+    );
   }
 
   return shipment;
@@ -243,6 +481,9 @@ const getCourierShipmentById = async (courierUserId: string, shipmentId: string)
 
 export const courierService = {
   createCourier,
+  applyCourier,
+  verifyCourierEmail,
+  reviewCourierApplication,
   assignCourier,
   getCourierShipments,
   getCourierShipmentById,

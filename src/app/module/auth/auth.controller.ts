@@ -109,10 +109,14 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 
   const result = await authService.refreshAccessToken(token);
 
+  res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     message: "Access token refreshed successfully",
-    data: result,
+    data: {
+      accessToken: result.accessToken,
+    },
   });
 });
 

@@ -556,19 +556,56 @@ const refreshAccessToken = async (token: string) => {
     throw new AppError(httpStatus.UNAUTHORIZED, "User account is not active");
   }
 
-  const accessToken = jwtUtils.createToken(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    config.jwt_access_secret,
-    config.jwt_access_expires_in as SignOptions["expiresIn"],
-  );
+  const newTokens = await prisma.$transaction(async (tx) => {
+    await tx.refreshSession.update({
+      where: {
+        id: session.id,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
 
-  return {
-    accessToken,
-  };
+    const accessToken = jwtUtils.createToken(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      config.jwt_access_secret,
+      config.jwt_access_expires_in as SignOptions["expiresIn"],
+    );
+
+    const refreshToken = jwtUtils.createToken(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      config.jwt_refresh_secret,
+      config.jwt_refresh_expires_in as SignOptions["expiresIn"],
+    );
+
+    const refreshTokenHash = hashRefreshToken(refreshToken);
+
+    const refreshExpiresAt = new Date();
+    refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7);
+
+    await tx.refreshSession.create({
+      data: {
+        userId: user.id,
+        tokenHash: refreshTokenHash,
+        expiresAt: refreshExpiresAt,
+      },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  });
+
+  return newTokens;
 };
 
 const logoutUser = async (token: string) => {

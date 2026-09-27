@@ -1,20 +1,54 @@
-import type { Request, Response } from 'express';
-import httpStatus from 'http-status-codes';
+import type { Request, Response } from "express";
+import httpStatus from "http-status-codes";
 
-import { catchAsync } from '../../utils/catchAsync';
-import { sendResponse } from '../../utils/sendResponse';
-import { courierService } from './courier.service';
-import { courierValidation } from './courier.validation';
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { courierService } from "./courier.service";
+import { courierValidation } from "./courier.validation";
 
 const createCourier = catchAsync(async (req: Request, res: Response) => {
   const result = await courierService.createCourier(req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
-    message: 'Courier created successfully',
+    message: "Courier created successfully",
     data: result,
   });
 });
+
+const applyCourier = catchAsync(async (req: Request, res: Response) => {
+  const result = await courierService.applyCourier(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    message: "Courier application submitted successfully",
+    data: result,
+  });
+});
+
+const verifyCourierEmail = catchAsync(async (req: Request, res: Response) => {
+  const result = await courierService.verifyCourierEmail(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Courier email verified successfully",
+    data: result,
+  });
+});
+
+const reviewCourierApplication = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const result = await courierService.reviewCourierApplication(id, req.body);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Courier application reviewed successfully",
+      data: result,
+    });
+  },
+);
 
 const assignCourier = catchAsync(async (req: Request, res: Response) => {
   const adminId = req.user!.id;
@@ -23,7 +57,7 @@ const assignCourier = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Courier assigned successfully',
+    message: "Courier assigned successfully",
     data: result,
   });
 });
@@ -31,32 +65,39 @@ const assignCourier = catchAsync(async (req: Request, res: Response) => {
 const getCourierShipments = catchAsync(async (req: Request, res: Response) => {
   const courierId = req.user!.id;
 
-  const query = courierValidation.courierShipmentQueryValidation.parse(req.query);
+  const query = courierValidation.courierShipmentQueryValidation.parse(
+    req.query,
+  );
 
   const result = await courierService.getCourierShipments(courierId, query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Courier shipments retrieved successfully',
+    message: "Courier shipments retrieved successfully",
     data: result,
   });
 });
 
-const getCourierShipmentById = catchAsync(async (req: Request, res: Response) => {
-  const courierId = req.user!.id;
-  const { id } = req.params;
+const getCourierShipmentById = catchAsync(
+  async (req: Request, res: Response) => {
+    const courierId = req.user!.id;
+    const { id } = req.params;
 
-  const result = await courierService.getCourierShipmentById(courierId, id);
+    const result = await courierService.getCourierShipmentById(courierId, id);
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    message: 'Courier shipment retrieved successfully',
-    data: result,
-  });
-});
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Courier shipment retrieved successfully",
+      data: result,
+    });
+  },
+);
 
 export const courierController = {
   createCourier,
+  applyCourier,
+  verifyCourierEmail,
+  reviewCourierApplication,
   assignCourier,
   getCourierShipments,
   getCourierShipmentById,

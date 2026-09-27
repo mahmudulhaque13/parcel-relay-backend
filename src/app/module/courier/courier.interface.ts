@@ -23,3 +23,12 @@ export interface ICourierShipmentQuery {
 export interface IUpdateShipmentStatus {
   status: ShipmentStatus;
 }
+
+export interface IVerifyCourierEmail {
+  email: string;
+  otp: string;
+}
+
+export interface IReviewCourierApplication {
+  action: "APPROVE" | "REJECT";
+}

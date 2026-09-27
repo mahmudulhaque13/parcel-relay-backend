@@ -15,6 +15,25 @@ import { courierValidation } from "./courier.validation";
 const router = Router();
 
 router.post(
+  "/apply",
+  validateRequest(courierValidation.createCourierValidation),
+  courierController.applyCourier,
+);
+
+router.post(
+  "/verify-email",
+  validateRequest(courierValidation.verifyCourierEmailValidation),
+  courierController.verifyCourierEmail,
+);
+
+router.patch(
+  "/applications/:id/review",
+  auth(UserRole.ADMIN),
+  validateRequest(courierValidation.reviewCourierApplicationValidation),
+  courierController.reviewCourierApplication,
+);
+
+router.post(
   "/",
   auth(UserRole.ADMIN),
   validateRequest(courierValidation.createCourierValidation),

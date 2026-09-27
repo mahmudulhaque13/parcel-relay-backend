@@ -8,7 +8,19 @@ const assignCourierValidation = z.object({
 const createCourierValidation = z.object({
   name: z.string().min(2, "Courier name must be at least 2 characters"),
   email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(
+      /[^A-Za-z0-9]/,
+      "Password must contain at least one special character",
+    )
+    .refine((value) => !/\s/.test(value), {
+      message: "Password must not contain whitespace",
+    }),
   phone: z.string().min(7, "Invalid phone number"),
 });
 
@@ -62,9 +74,22 @@ const updateShipmentStatusValidation = z
   })
   .strict();
 
+const verifyCourierEmailValidation = z.object({
+  email: z.string().email("Invalid email address"),
+  otp: z.string().regex(/^\d{6}$/, "OTP must be 6 digits"),
+});
+
+const reviewCourierApplicationValidation = z
+  .object({
+    action: z.enum(["APPROVE", "REJECT"]),
+  })
+  .strict();
+
 export const courierValidation = {
   assignCourierValidation,
   createCourierValidation,
   courierShipmentQueryValidation,
   updateShipmentStatusValidation,
+  verifyCourierEmailValidation,
+  reviewCourierApplicationValidation,
 };

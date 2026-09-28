@@ -21,7 +21,7 @@ router.post(
 
 router.post(
   "/",
-  auth(),
+  auth(UserRole.CUSTOMER),
   validateRequest(shipmentValidation.createShipmentValidation),
   shipmentController.createShipment,
 );

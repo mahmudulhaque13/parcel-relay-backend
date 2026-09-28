@@ -136,6 +136,8 @@ const registerUser = async (payload: IRegisterUser) => {
 
   await emailUtils.sendOtpEmail(user.email, otp, "Email Verification");
 
+  await emailUtils.sendWelcomeEmail(user.email, user.name);
+
   return {
     message:
       "Registration successful. Please verify your email with the OTP sent to your email.",

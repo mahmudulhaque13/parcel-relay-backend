@@ -8,6 +8,8 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import { emailUtils } from "../../utils/email";
 import { otpUtils } from "../../utils/otp";
+import { shippingLabelPdfUtils } from "../../utils/pdf/shipping-label.pdf";
+import { cloudinaryUtils } from "../../utils/cloudinary";
 
 import type {
   IAssignCourier,
@@ -264,8 +266,29 @@ const reviewCourierApplication = async (
       },
     });
 
+    await tx.auditLog.create({
+      data: {
+        userId: courier.id,
+        action: "UPDATE",
+        entityType: "CourierApplication",
+        entityId: courier.id,
+        description: `Courier application ${applicationStatus.toLowerCase()}`,
+        metadata: {
+          applicationStatus,
+          userStatus,
+          email: courier.email,
+        },
+      },
+    });
+
     return updatedUser;
   });
+
+  await emailUtils.sendCourierApprovalEmail(
+    result.email,
+    result.name,
+    payload.action === "APPROVE",
+  );
 
   return {
     id: result.id,
@@ -291,8 +314,23 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
     },
   });
 
+  const shipment = await prisma.shipment.findUnique({
+    where: {
+      id: payload.shipmentId,
+    },
+    include: {
+      originZone: true,
+      destinationZone: true,
+      customer: true,
+    },
+  });
+
   if (!courier) {
     throw new AppError(httpStatus.NOT_FOUND, "Active courier not found");
+  }
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
   }
 
   const courierProfile = courier.courierProfile;
@@ -349,6 +387,36 @@ const assignCourier = async (adminId: string, payload: IAssignCourier) => {
       status: "ASSIGNED",
       eventId: shipmentEvent.id,
     };
+  });
+
+  const shippingLabelPdf = await shippingLabelPdfUtils.generateShippingLabelPdf(
+    {
+      shipmentId: shipment.id,
+      trackingNumber: shipment.trackingNumber,
+      recipientName: shipment.recipientName,
+      recipientPhone: shipment.recipientPhone,
+      deliveryAddress: shipment.deliveryAddress,
+      originZone: shipment.originZone.name,
+      destinationZone: shipment.destinationZone.name,
+      packageDescription: shipment.packageDescription,
+      weight: Number(shipment.weight),
+      codAmount: Number(shipment.codAmount),
+    },
+  );
+
+  await cloudinaryUtils.uploadToCloudinary({
+    buffer: shippingLabelPdf,
+    folder: "parcel-relay/shipping-labels",
+    publicId: `shipping-label-${shipment.trackingNumber}`,
+    resourceType: "raw",
+  });
+
+  await emailUtils.sendShippingLabelEmail({
+    to: shipment.customer.email,
+    customerName: shipment.customer.name,
+    trackingNumber: shipment.trackingNumber,
+    shipmentId: shipment.id,
+    shippingLabel: shippingLabelPdf,
   });
 
   return result;

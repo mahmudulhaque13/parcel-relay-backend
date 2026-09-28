@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Courier Application</title>
+</head>
+
+<body
+  style="
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6f8;
+    font-family: Arial, Helvetica, sans-serif;
+  "
+>
+  <div
+    style="
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    "
+  >
+    <div
+      style="
+        background-color: #1d3557;
+        padding: 24px;
+        text-align: center;
+      "
+    >
+      <h1 style="margin: 0; color: #ffffff;">
+        ParcelRelay
+      </h1>
+    </div>
+
+    <div style="padding: 32px;">
+      <% if (approved) { %>
+
+        <h2 style="margin-top: 0; color: #111827;">
+          Courier Application Approved
+        </h2>
+
+        <p style="color: #4b5563; line-height: 1.6;">
+          Hello <%= name %>,
+        </p>
+
+        <p style="color: #4b5563; line-height: 1.6;">
+          Your ParcelRelay courier application has been approved.
+        </p>
+
+        <p style="color: #4b5563; line-height: 1.6;">
+          Your courier account is now active and you can start using
+          ParcelRelay courier services.
+        </p>
+
+      <% } else { %>
+
+        <h2 style="margin-top: 0; color: #111827;">
+          Courier Application Update
+        </h2>
+
+        <p style="color: #4b5563; line-height: 1.6;">
+          Hello <%= name %>,
+        </p>
+
+        <p style="color: #4b5563; line-height: 1.6;">
+          Your ParcelRelay courier application has been rejected.
+        </p>
+
+        <p style="color: #4b5563; line-height: 1.6;">
+          Please contact ParcelRelay support if you need further information.
+        </p>
+
+      <% } %>
+    </div>
+
+    <div
+      style="
+        padding: 20px;
+        text-align: center;
+        background-color: #f8fafc;
+        border-top: 1px solid #e5e7eb;
+      "
+    >
+      <p style="margin: 0; color: #6b7280; font-size: 13px;">
+        This is an automated email from ParcelRelay.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

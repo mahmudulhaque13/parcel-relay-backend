@@ -3,6 +3,7 @@ import config from "./app/config";
 import { prisma } from "./app/lib/prisma";
 import { redisClient } from "./app/lib/redis";
 import { seedAdmin } from "./app/utils/seed";
+import { startCronJobs } from "./app/lib/cron";
 
 const PORT = config.port;
 
@@ -15,6 +16,8 @@ const main = async (): Promise<void> => {
     console.log("Redis Connected Successfully.");
 
     await seedAdmin();
+
+    startCronJobs();
 
     app.listen(PORT, () => {
       console.log(

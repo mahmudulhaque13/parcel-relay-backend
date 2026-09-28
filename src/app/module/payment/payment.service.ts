@@ -1,14 +1,20 @@
-import httpStatus from 'http-status-codes';
-import Stripe from 'stripe';
+import httpStatus from "http-status-codes";
+import Stripe from "stripe";
 
-import config from '../../config';
-import { prisma } from '../../lib/prisma';
-import { stripe } from '../../lib/stripe';
-import { AppError } from '../../utils/AppError';
+import config from "../../config";
+import { prisma } from "../../lib/prisma";
+import { stripe } from "../../lib/stripe";
+import { AppError } from "../../utils/AppError";
+import { invoicePdfUtils } from "../../utils/pdf/invoice.pdf";
+import { emailUtils } from "../../utils/email";
 
-import type { IInitiatePayment, IRefundPayment } from './payment.interface';
+import type { IInitiatePayment, IRefundPayment } from "./payment.interface";
+import { cloudinaryUtils } from "../../utils/cloudinary";
 
-const initiatePayment = async (customerId: string, payload: IInitiatePayment) => {
+const initiatePayment = async (
+  customerId: string,
+  payload: IInitiatePayment,
+) => {
   // 1. Find shipment
   const shipment = await prisma.shipment.findUnique({
     where: {
@@ -20,33 +26,42 @@ const initiatePayment = async (customerId: string, payload: IInitiatePayment) =>
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
   }
 
   // 2. Check shipment ownership
   if (shipment.customerId !== customerId) {
-    throw new AppError(httpStatus.FORBIDDEN, 'You do not have permission to pay for this shipment');
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to pay for this shipment",
+    );
   }
 
   // 3. Check if payment is already completed
-  if (shipment.paymentStatus === 'PAID') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Shipment payment is already completed');
+  if (shipment.paymentStatus === "PAID") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Shipment payment is already completed",
+    );
   }
 
   // 4. Payment is allowed only for pending payment shipment
-  if (shipment.status !== 'PENDING_PAYMENT') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Shipment is not available for payment');
+  if (shipment.status !== "PENDING_PAYMENT") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Shipment is not available for payment",
+    );
   }
 
   // 5. Find existing pending Stripe payment attempt
   const existingPayment = await prisma.paymentAttempt.findFirst({
     where: {
       shipmentId: shipment.id,
-      status: 'PENDING',
-      method: 'STRIPE',
+      status: "PENDING",
+      method: "STRIPE",
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 
@@ -61,8 +76,8 @@ const initiatePayment = async (customerId: string, payload: IInitiatePayment) =>
         shipmentId: shipment.id,
         transactionId,
         amount: shipment.deliveryCharge,
-        method: 'STRIPE',
-        status: 'PENDING',
+        method: "STRIPE",
+        status: "PENDING",
       },
     });
   }
@@ -72,14 +87,14 @@ const initiatePayment = async (customerId: string, payload: IInitiatePayment) =>
 
   // 8. Create Stripe Checkout Session
   const checkoutSession = await stripe.checkout.sessions.create({
-    mode: 'payment',
+    mode: "payment",
 
-    payment_method_types: ['card'],
+    payment_method_types: ["card"],
 
     line_items: [
       {
         price_data: {
-          currency: 'bdt',
+          currency: "bdt",
 
           product_data: {
             name: `ParcelRelay Shipment ${shipment.trackingNumber}`,
@@ -110,7 +125,10 @@ const initiatePayment = async (customerId: string, payload: IInitiatePayment) =>
 
   // 9. Check Stripe Checkout URL
   if (!checkoutSession.url) {
-    throw new AppError(httpStatus.BAD_GATEWAY, 'Failed to create Stripe checkout session');
+    throw new AppError(
+      httpStatus.BAD_GATEWAY,
+      "Failed to create Stripe checkout session",
+    );
   }
 
   // 10. Save Stripe session information
@@ -137,7 +155,7 @@ const initiatePayment = async (customerId: string, payload: IInitiatePayment) =>
 
 const paymentSuccess = async (sessionId: string) => {
   if (!sessionId) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Stripe session ID is required');
+    throw new AppError(httpStatus.BAD_REQUEST, "Stripe session ID is required");
   }
 
   const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -151,7 +169,7 @@ const paymentSuccess = async (sessionId: string) => {
 
 const paymentCancel = async () => {
   return {
-    message: 'Payment was cancelled',
+    message: "Payment was cancelled",
   };
 };
 
@@ -172,7 +190,7 @@ const getPaymentStatus = async (shipmentId: string, customerId: string) => {
   });
 
   if (!shipment) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Shipment not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
   }
 
   const paymentAttempts = await prisma.paymentAttempt.findMany({
@@ -190,7 +208,7 @@ const getPaymentStatus = async (shipmentId: string, customerId: string) => {
       gatewayResponse: true,
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
 
@@ -205,10 +223,10 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
   const paymentAttempt = await prisma.paymentAttempt.findFirst({
     where: {
       shipmentId: payload.shipmentId,
-      method: 'STRIPE',
+      method: "STRIPE",
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
     include: {
       shipment: true,
@@ -216,22 +234,31 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
   });
 
   if (!paymentAttempt) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Stripe payment not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Stripe payment not found");
   }
 
   // 2. Prevent duplicate refund
-  if (paymentAttempt.status === 'REFUNDED') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Shipment payment is already refunded');
+  if (paymentAttempt.status === "REFUNDED") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Shipment payment is already refunded",
+    );
   }
 
   // 3. Payment must be PAID before refund
-  if (paymentAttempt.status !== 'PAID') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Stripe payment is not eligible for refund');
+  if (paymentAttempt.status !== "PAID") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Stripe payment is not eligible for refund",
+    );
   }
 
   // 4. Only returned shipments can be refunded
-  if (paymentAttempt.shipment.status !== 'RETURNED_TO_SENDER') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Only returned shipments can be refunded');
+  if (paymentAttempt.shipment.status !== "RETURNED_TO_SENDER") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Only returned shipments can be refunded",
+    );
   }
 
   // 5. Get Stripe Payment Intent
@@ -246,13 +273,19 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
     const sessionId = gatewayResponse?.sessionId;
 
     if (!sessionId) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Stripe payment session information is missing');
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Stripe payment session information is missing",
+      );
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (!session.payment_intent) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Stripe payment intent not found');
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Stripe payment intent not found",
+      );
     }
 
     paymentIntentId = session.payment_intent as string;
@@ -271,7 +304,7 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
         id: paymentAttempt.id,
       },
       data: {
-        status: 'REFUNDED',
+        status: "REFUNDED",
         gatewayResponse: {
           ...(paymentAttempt.gatewayResponse as object),
           refundId: refund.id,
@@ -286,7 +319,7 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
         id: paymentAttempt.shipmentId,
       },
       data: {
-        paymentStatus: 'REFUNDED',
+        paymentStatus: "REFUNDED",
       },
     });
 
@@ -295,7 +328,7 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
       data: {
         shipmentId: updatedShipment.id,
         status: updatedShipment.status,
-        description: 'Shipment payment refunded through Stripe.',
+        description: "Shipment payment refunded through Stripe.",
       },
     });
 
@@ -303,10 +336,10 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
     await tx.auditLog.create({
       data: {
         userId: adminId,
-        action: 'PAYMENT',
-        entityType: 'Shipment',
+        action: "PAYMENT",
+        entityType: "Shipment",
         entityId: updatedShipment.id,
-        description: 'Shipment payment refunded through Stripe.',
+        description: "Shipment payment refunded through Stripe.",
         metadata: {
           paymentAttemptId: paymentAttempt.id,
           transactionId: paymentAttempt.transactionId,
@@ -333,22 +366,29 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
 
 const handleWebhook = async (payload: Buffer, signature: string) => {
   if (!signature) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Stripe signature is missing');
+    throw new AppError(httpStatus.BAD_REQUEST, "Stripe signature is missing");
   }
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(payload, signature, config.stripe_webhook_secret);
+    event = stripe.webhooks.constructEvent(
+      payload,
+      signature,
+      config.stripe_webhook_secret,
+    );
   } catch (error) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid Stripe webhook signature');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Invalid Stripe webhook signature",
+    );
   }
 
-  if (event.type !== 'checkout.session.completed') {
+  if (event.type !== "checkout.session.completed") {
     return {
       received: true,
       eventType: event.type,
-      message: 'Event received but no action was required',
+      message: "Event received but no action was required",
     };
   }
 
@@ -357,7 +397,10 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
   const paymentAttemptId = session.metadata?.paymentAttemptId;
 
   if (!paymentAttemptId) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Payment attempt ID is missing from Stripe session');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Payment attempt ID is missing from Stripe session",
+    );
   }
 
   const paymentAttempt = await prisma.paymentAttempt.findUnique({
@@ -365,38 +408,50 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
       id: paymentAttemptId,
     },
     include: {
-      shipment: true,
+      shipment: {
+        include: {
+          customer: true,
+          originZone: true,
+          destinationZone: true,
+        },
+      },
     },
   });
 
   if (!paymentAttempt) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Payment attempt not found');
+    throw new AppError(httpStatus.NOT_FOUND, "Payment attempt not found");
   }
 
   // Idempotency: webhook may arrive more than once
-  if (paymentAttempt.status === 'PAID') {
+  if (paymentAttempt.status === "PAID") {
     return {
       received: true,
       alreadyProcessed: true,
-      message: 'Payment webhook was already processed',
+      message: "Payment webhook was already processed",
     };
   }
 
   // Verify Stripe payment status
-  if (session.payment_status !== 'paid') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Stripe payment is not completed');
+  if (session.payment_status !== "paid") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Stripe payment is not completed",
+    );
   }
 
   // Verify currency
-  if (session.currency !== 'bdt') {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid payment currency');
+  if (session.currency !== "bdt") {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid payment currency");
   }
 
   // Verify amount
   const expectedAmount = Math.round(Number(paymentAttempt.amount) * 100);
 
   if (session.amount_total !== expectedAmount) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Payment amount does not match shipment amount');
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Payment amount does not match shipment amount",
+    );
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -405,7 +460,7 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
         id: paymentAttempt.id,
       },
       data: {
-        status: 'PAID',
+        status: "PAID",
         paidAt: new Date(),
         gatewayResponse: {
           eventId: event.id,
@@ -422,26 +477,27 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
         id: paymentAttempt.shipmentId,
       },
       data: {
-        paymentStatus: 'PAID',
-        status: 'READY_FOR_ASSIGNMENT',
+        paymentStatus: "PAID",
+        status: "READY_FOR_ASSIGNMENT",
       },
     });
 
     await tx.shipmentEvent.create({
       data: {
         shipmentId: shipment.id,
-        status: 'READY_FOR_ASSIGNMENT',
-        description: 'Payment completed successfully. Shipment is ready for courier assignment.',
+        status: "READY_FOR_ASSIGNMENT",
+        description:
+          "Payment completed successfully. Shipment is ready for courier assignment.",
       },
     });
 
     await tx.auditLog.create({
       data: {
         userId: shipment.customerId,
-        action: 'PAYMENT',
-        entityType: 'Shipment',
+        action: "PAYMENT",
+        entityType: "Shipment",
         entityId: shipment.id,
-        description: 'Shipment payment completed through Stripe.',
+        description: "Shipment payment completed through Stripe.",
         metadata: {
           paymentAttemptId: paymentAttempt.id,
           transactionId: paymentAttempt.transactionId,
@@ -450,6 +506,57 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
         },
       },
     });
+
+    const invoicePdf = await invoicePdfUtils.generateInvoicePdf({
+      invoiceNumber: `INV-${result.paymentAttempt.transactionId}`,
+      shipmentId: result.shipment.id,
+      customerName: paymentAttempt.shipment.customer.name,
+      customerEmail: paymentAttempt.shipment.customer.email,
+      recipientName: result.shipment.recipientName,
+      deliveryAddress: result.shipment.deliveryAddress,
+      weight: Number(result.shipment.weight),
+      codAmount: Number(result.shipment.codAmount),
+      deliveryCharge: Number(result.shipment.deliveryCharge),
+      paymentStatus: result.shipment.paymentStatus,
+      transactionId: result.paymentAttempt.transactionId,
+      createdAt: result.paymentAttempt.paidAt ?? new Date(),
+    });
+
+    await emailUtils.sendPaymentSuccessEmail(
+      paymentAttempt.shipment.customer.email,
+      paymentAttempt.shipment.customer.name,
+      result.shipment.id,
+      result.paymentAttempt.transactionId,
+      Number(result.paymentAttempt.amount),
+      [
+        {
+          filename: `invoice-${result.paymentAttempt.transactionId}.pdf`,
+          content: invoicePdf,
+          contentType: "application/pdf",
+        },
+      ],
+    );
+
+    const invoiceUpload = await cloudinaryUtils.uploadToCloudinary({
+      buffer: invoicePdf,
+      folder: "parcel-relay/invoices",
+      publicId: `invoice-${result.paymentAttempt.transactionId}`,
+      resourceType: "raw",
+    });
+
+    await prisma.paymentAttempt.update({
+      where: {
+        id: result.paymentAttempt.id,
+      },
+      data: {
+        gatewayResponse: {
+          ...(result.paymentAttempt.gatewayResponse as object),
+          invoicePdfUrl: invoiceUpload.secure_url,
+        },
+      },
+    });
+
+    void invoiceUpload;
 
     return {
       paymentAttempt: updatedPayment,
@@ -460,7 +567,7 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
   return {
     received: true,
     alreadyProcessed: false,
-    message: 'Stripe payment processed successfully',
+    message: "Stripe payment processed successfully",
     paymentAttemptId: result.paymentAttempt.id,
     shipmentId: result.shipment.id,
     shipmentStatus: result.shipment.status,

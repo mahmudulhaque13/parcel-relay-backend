@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shipping Label</title>
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #f4f6f8;
+      font-family: Arial, sans-serif;
+    "
+  >
+    <div
+      style="
+        max-width: 600px;
+        margin: 40px auto;
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 8px;
+      "
+    >
+      <h2 style="margin-top: 0">ParcelRelay Shipping Label</h2>
+
+      <p>Hello <%= customerName %>,</p>
+
+      <p>
+        Your shipment has been assigned to a courier and the shipping label has
+        been generated.
+      </p>
+
+      <p>
+        <strong>Tracking Number:</strong>
+        <%= trackingNumber %>
+      </p>
+
+      <p>
+        <strong>Shipment ID:</strong>
+        <%= shipmentId %>
+      </p>
+
+      <p>The shipping label PDF is attached to this email.</p>
+
+      <p>Thank you for using ParcelRelay.</p>
+    </div>
+  </body>
+</html>

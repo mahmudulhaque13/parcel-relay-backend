@@ -15,7 +15,7 @@ router.post(
   zoneController.createZone,
 );
 
-router.get("/", auth(UserRole.ADMIN), zoneController.getAllZones);
+router.get("/", zoneController.getAllZones);
 
 router.patch(
   "/:id",

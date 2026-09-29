@@ -34,6 +34,8 @@ export default {
 
   admin_password: process.env.ADMIN_PASSWORD!,
 
+  demo_password: process.env.DEMO_PASSWORD!,
+
   stripe_secret_key: process.env.STRIPE_SECRET_KEY!,
 
   stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET!,

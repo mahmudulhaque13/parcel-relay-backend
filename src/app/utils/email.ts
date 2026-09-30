@@ -104,7 +104,7 @@ const sendShippingLabelEmail = async ({
   shipmentId: string;
   shippingLabel: Buffer;
 }) => {
-  const html = await renderEmailTemplate("shipping-label", {
+  const html = await renderEmailTemplate("shipping-label.ejs", {
     customerName,
     trackingNumber,
     shipmentId,

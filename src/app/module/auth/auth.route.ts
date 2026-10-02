@@ -47,6 +47,12 @@ router.post(
 );
 
 router.post(
+  "/demo-login",
+  validateRequest(authValidation.demoLoginValidation),
+  authController.demoLogin,
+);
+
+router.post(
   "/google",
   validateRequest(authValidation.googleLoginValidation),
   authController.googleLogin,

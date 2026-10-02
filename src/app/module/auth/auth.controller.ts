@@ -80,6 +80,20 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const demoLogin = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.demoLogin(req.body.role);
+
+  res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+
+  const { refreshToken, ...responseData } = result;
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Demo login successful",
+    data: responseData,
+  });
+});
+
 const googleLogin = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.googleLogin(req.body);
 
@@ -161,6 +175,7 @@ export const authController = {
   forgotPassword,
   resetPassword,
   loginUser,
+  demoLogin,
   googleLogin,
   refreshToken,
   logoutUser,

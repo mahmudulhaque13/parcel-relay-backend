@@ -22,6 +22,10 @@ const loginValidation = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const demoLoginValidation = z.object({
+  role: z.enum(["CUSTOMER", "COURIER", "ADMIN"]),
+});
+
 const googleLoginValidation = z.object({
   idToken: z.string().min(1, "Google ID token is required"),
 });
@@ -48,6 +52,7 @@ const resetPasswordValidation = z.object({
 export const authValidation = {
   registerValidation,
   loginValidation,
+  demoLoginValidation,
   googleLoginValidation,
   verifyEmailValidation,
   resendVerificationValidation,

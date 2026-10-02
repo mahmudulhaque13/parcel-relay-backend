@@ -31,3 +31,7 @@ export interface IResetPassword {
 export interface IResendVerification {
   email: string;
 }
+
+export interface IDemoLogin {
+  role: "CUSTOMER" | "COURIER" | "ADMIN";
+}

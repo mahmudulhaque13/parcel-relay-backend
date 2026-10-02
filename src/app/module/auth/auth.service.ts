@@ -344,6 +344,23 @@ const resetPassword = async (payload: IResetPassword) => {
   };
 };
 
+const demoLogin = async (role: "CUSTOMER" | "COURIER" | "ADMIN") => {
+  let email: string;
+
+  if (role === "ADMIN") {
+    email = config.admin_email;
+  } else if (role === "CUSTOMER") {
+    email = "customer@parcelrelay.demo";
+  } else {
+    email = "courier@parcelrelay.demo";
+  }
+
+  return loginUser({
+    email,
+    password: role === "ADMIN" ? config.admin_password : config.demo_password,
+  });
+};
+
 const loginUser = async (payload: ILoginUser) => {
   const user = await prisma.user.findUnique({
     where: {
@@ -643,6 +660,7 @@ export const authService = {
   resendVerification,
   forgotPassword,
   resetPassword,
+  demoLogin,
   loginUser,
   googleLogin,
   refreshAccessToken,

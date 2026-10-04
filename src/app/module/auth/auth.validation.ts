@@ -49,6 +49,11 @@ const resetPasswordValidation = z.object({
   newPassword: strongPasswordSchema,
 });
 
+const changePasswordValidation = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: strongPasswordSchema,
+});
+
 export const authValidation = {
   registerValidation,
   loginValidation,
@@ -58,4 +63,5 @@ export const authValidation = {
   resendVerificationValidation,
   forgotPasswordValidation,
   resetPasswordValidation,
+  changePasswordValidation,
 };

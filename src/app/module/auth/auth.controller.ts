@@ -66,6 +66,16 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const changePassword = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.changePassword(req.user!.id, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Password changed successfully",
+    data: result,
+  });
+});
+
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.loginUser(req.body);
 
@@ -174,6 +184,7 @@ export const authController = {
   resendVerification,
   forgotPassword,
   resetPassword,
+  changePassword,
   loginUser,
   demoLogin,
   googleLogin,

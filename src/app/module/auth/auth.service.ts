@@ -19,6 +19,7 @@ import type {
   IResendVerification,
   IResetPassword,
   IVerifyEmail,
+  IChangePassword,
 } from "./auth.interface";
 
 const hashRefreshToken = (token: string): string => {
@@ -344,6 +345,73 @@ const resetPassword = async (payload: IResetPassword) => {
   };
 };
 
+const changePassword = async (userId: string, payload: IChangePassword) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  if (user.isDeleted || user.status !== "ACTIVE") {
+    throw new AppError(httpStatus.FORBIDDEN, "User account is not active");
+  }
+
+  if (!user.password) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Password change is not available for this account",
+    );
+  }
+
+  const isPasswordMatched = await bcrypt.compare(
+    payload.currentPassword,
+    user.password,
+  );
+
+  if (!isPasswordMatched) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "Current password is incorrect",
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(
+    payload.newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        password: hashedPassword,
+        authProvider: "CREDENTIAL",
+      },
+    }),
+
+    prisma.refreshSession.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    }),
+  ]);
+
+  return {
+    email: user.email,
+    message: "Password changed successfully",
+  };
+};
+
 const demoLogin = async (role: "CUSTOMER" | "COURIER" | "ADMIN") => {
   let email: string;
 
@@ -660,6 +728,7 @@ export const authService = {
   resendVerification,
   forgotPassword,
   resetPassword,
+  changePassword,
   demoLogin,
   loginUser,
   googleLogin,

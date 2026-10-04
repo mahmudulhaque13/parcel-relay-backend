@@ -35,3 +35,8 @@ export interface IResendVerification {
 export interface IDemoLogin {
   role: "CUSTOMER" | "COURIER" | "ADMIN";
 }
+
+export interface IChangePassword {
+  currentPassword: string;
+  newPassword: string;
+}

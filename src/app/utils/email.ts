@@ -17,6 +17,9 @@ const transporter = nodemailer.createTransport({
     user: config.email_user,
     pass: config.email_password,
   },
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 15_000,
 });
 
 const sendEmail = async (
@@ -25,13 +28,23 @@ const sendEmail = async (
   html: string,
   attachments?: IEmailAttachment[],
 ) => {
-  await transporter.sendMail({
-    from: config.email_from,
-    to,
-    subject,
-    html,
-    attachments,
-  });
+  try {
+    await transporter.sendMail({
+      from: config.email_from,
+      to,
+      subject,
+      html,
+      attachments,
+    });
+  } catch (error) {
+    console.error("[Email] Failed to send email:", {
+      to,
+      subject,
+      error: error instanceof Error ? error.message : "Unknown email error",
+    });
+
+    throw error;
+  }
 };
 
 const renderEmailTemplate = async (

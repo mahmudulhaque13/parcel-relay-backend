@@ -4,6 +4,8 @@ model CourierProfile {
   phone           String
   vehicleType     String?
   vehicleNumber   String?
+  identityDocumentUrl String?
+profilePhotoUrl     String?
   isAvailable     Boolean  @default(true)
   isVerified      Boolean  @default(false)
   applicationStatus CourierApplicationStatus @default(PENDING)

@@ -17,6 +17,7 @@ import type {
   ICourierShipmentQuery,
   IReviewCourierApplication,
   IVerifyCourierEmail,
+  ICourierApplicationFiles,
 } from "./courier.interface";
 
 const createCourier = async (payload: ICreateCourier) => {
@@ -70,11 +71,19 @@ const createCourier = async (payload: ICreateCourier) => {
   };
 };
 
-const applyCourier = async (payload: ICreateCourier) => {
+const applyCourier = async (
+  payload: ICreateCourier,
+  files: ICourierApplicationFiles,
+) => {
+  if (!files.identityDocument || !files.profilePhoto) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Identity document and profile photo are required",
+    );
+  }
+
   const existingUser = await prisma.user.findUnique({
-    where: {
-      email: payload.email,
-    },
+    where: { email: payload.email },
   });
 
   if (existingUser) {
@@ -88,6 +97,21 @@ const applyCourier = async (payload: ICreateCourier) => {
     payload.password,
     Number(config.bcrypt_salt_rounds),
   );
+
+  // Upload courier documents to Cloudinary
+  const [identityDocumentUpload, profilePhotoUpload] = await Promise.all([
+    cloudinaryUtils.uploadToCloudinary({
+      buffer: files.identityDocument.buffer,
+      folder: "parcel-relay/courier-documents",
+      resourceType: "auto",
+    }),
+
+    cloudinaryUtils.uploadToCloudinary({
+      buffer: files.profilePhoto.buffer,
+      folder: "parcel-relay/courier-profiles",
+      resourceType: "image",
+    }),
+  ]);
 
   const result = await prisma.$transaction(async (tx) => {
     const courier = await tx.user.create({
@@ -107,6 +131,8 @@ const applyCourier = async (payload: ICreateCourier) => {
         userId: courier.id,
         phone: payload.phone,
         applicationStatus: "PENDING",
+        identityDocumentUrl: identityDocumentUpload.secure_url,
+        profilePhotoUrl: profilePhotoUpload.secure_url,
       },
     });
 

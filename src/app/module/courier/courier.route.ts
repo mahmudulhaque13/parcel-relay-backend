@@ -12,10 +12,16 @@ import { courierController } from "./courier.controller";
 
 import { courierValidation } from "./courier.validation";
 
+import { upload } from "../../middleware/upload";
+
 const router = Router();
 
 router.post(
   "/apply",
+  upload.fields([
+    { name: "identityDocument", maxCount: 1 },
+    { name: "profilePhoto", maxCount: 1 },
+  ]),
   validateRequest(courierValidation.createCourierValidation),
   courierController.applyCourier,
 );

@@ -85,6 +85,10 @@ const reviewCourierApplicationValidation = z
   })
   .strict();
 
+const allowedIdentityMimeTypes = ["image/jpeg", "image/png", "application/pdf"];
+
+const allowedProfilePhotoMimeTypes = ["image/jpeg", "image/png"];
+
 export const courierValidation = {
   assignCourierValidation,
   createCourierValidation,
@@ -92,4 +96,6 @@ export const courierValidation = {
   updateShipmentStatusValidation,
   verifyCourierEmailValidation,
   reviewCourierApplicationValidation,
+  allowedIdentityMimeTypes,
+  allowedProfilePhotoMimeTypes,
 };

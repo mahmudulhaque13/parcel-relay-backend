@@ -17,7 +17,17 @@ const createCourier = catchAsync(async (req: Request, res: Response) => {
 });
 
 const applyCourier = catchAsync(async (req: Request, res: Response) => {
-  const result = await courierService.applyCourier(req.body);
+  const uploadedFiles = req.files as {
+    identityDocument?: Express.Multer.File[];
+    profilePhoto?: Express.Multer.File[];
+  };
+
+  const files = {
+    identityDocument: uploadedFiles.identityDocument?.[0],
+    profilePhoto: uploadedFiles.profilePhoto?.[0],
+  };
+
+  const result = await courierService.applyCourier(req.body, files);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,

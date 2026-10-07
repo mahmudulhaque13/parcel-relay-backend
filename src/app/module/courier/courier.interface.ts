@@ -32,3 +32,8 @@ export interface IVerifyCourierEmail {
 export interface IReviewCourierApplication {
   action: "APPROVE" | "REJECT";
 }
+
+export interface ICourierApplicationFiles {
+  identityDocument?: Express.Multer.File;
+  profilePhoto?: Express.Multer.File;
+}

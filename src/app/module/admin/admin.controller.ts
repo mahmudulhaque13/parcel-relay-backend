@@ -1,10 +1,10 @@
-import type { Request, Response } from "express";
-import httpStatus from "http-status-codes";
+import type { Request, Response } from 'express';
+import httpStatus from 'http-status-codes';
 
-import { catchAsync } from "../../utils/catchAsync";
-import { sendResponse } from "../../utils/sendResponse";
-import { adminService } from "./admin.service";
-import { adminValidation } from "./admin.validation";
+import { catchAsync } from '../../utils/catchAsync';
+import { sendResponse } from '../../utils/sendResponse';
+import { adminService } from './admin.service';
+import { adminValidation } from './admin.validation';
 
 const createAdmin = catchAsync(async (req: Request, res: Response) => {
   const creatorId = req.user!.id;
@@ -15,7 +15,7 @@ const createAdmin = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
-    message: "Admin created successfully",
+    message: 'Admin created successfully',
     data: result,
   });
 });
@@ -26,15 +26,11 @@ const reassignCourier = catchAsync(async (req: Request, res: Response) => {
 
   const payload = adminValidation.reassignCourierValidation.parse(req.body);
 
-  const result = await adminService.reassignCourier(
-    adminId,
-    shipmentId,
-    payload,
-  );
+  const result = await adminService.reassignCourier(adminId, shipmentId, payload);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Courier reassigned successfully",
+    message: 'Courier reassigned successfully',
     data: result,
   });
 });
@@ -46,7 +42,7 @@ const getAdminUsers = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Admin users retrieved successfully",
+    message: 'Admin users retrieved successfully',
     data: result,
   });
 });
@@ -58,7 +54,7 @@ const getAdminUserById = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "Admin user retrieved successfully",
+    message: 'Admin user retrieved successfully',
     data: result,
   });
 });
@@ -73,7 +69,7 @@ const updateUserRole = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: "User role updated successfully",
+    message: 'User role updated successfully',
     data: result,
   });
 });
@@ -88,7 +84,7 @@ const updateUserStatus = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     statusCode: 200,
-    message: "User status updated successfully",
+    message: 'User status updated successfully',
     data: result,
   });
 });
@@ -100,7 +96,7 @@ const getAuditLogs = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     statusCode: 200,
-    message: "Audit logs retrieved successfully",
+    message: 'Audit logs retrieved successfully',
     data: result,
   });
 });
@@ -110,7 +106,7 @@ const getDashboardStats = catchAsync(async (_req, res) => {
 
   sendResponse(res, {
     statusCode: 200,
-    message: "Dashboard statistics retrieved successfully",
+    message: 'Dashboard statistics retrieved successfully',
     data: result,
   });
 });
@@ -122,7 +118,7 @@ const getShipmentReports = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     statusCode: 200,
-    message: "Shipment reports retrieved successfully",
+    message: 'Shipment reports retrieved successfully',
     data: result,
   });
 });

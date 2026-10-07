@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
-import path from "path";
+import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config({ path: path.join(process.cwd(), ".env") });
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 export default {
   node_env: process.env.NODE_ENV,
@@ -12,7 +12,7 @@ export default {
 
   frontend_url: process.env.FRONTEND_URL,
 
-  bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS || "10",
+  bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS || '10',
 
   jwt_access_secret: process.env.JWT_ACCESS_SECRET!,
 
@@ -24,9 +24,9 @@ export default {
 
   google_client_id: process.env.GOOGLE_CLIENT_ID!,
 
-  rate_limit_window_ms: process.env.RATE_LIMIT_WINDOW_MS || "900000",
+  rate_limit_window_ms: process.env.RATE_LIMIT_WINDOW_MS || '900000',
 
-  rate_limit_max: process.env.RATE_LIMIT_MAX || "100",
+  rate_limit_max: process.env.RATE_LIMIT_MAX || '100',
 
   admin_name: process.env.ADMIN_NAME!,
 

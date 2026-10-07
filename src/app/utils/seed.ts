@@ -1,14 +1,10 @@
-import bcrypt from "bcrypt";
-import httpStatus from "http-status-codes";
+import bcrypt from 'bcrypt';
+import httpStatus from 'http-status-codes';
 
-import {
-  CourierApplicationStatus,
-  UserRole,
-  UserStatus,
-} from "../../generated/prisma/enums";
-import config from "../config";
-import { prisma } from "../lib/prisma";
-import { AppError } from "./AppError";
+import { CourierApplicationStatus, UserRole, UserStatus } from '../../generated/prisma/enums';
+import config from '../config';
+import { prisma } from '../lib/prisma';
+import { AppError } from './AppError';
 
 export const seedAdmin = async () => {
   try {
@@ -19,7 +15,7 @@ export const seedAdmin = async () => {
     });
 
     if (isAdminExist) {
-      console.log("Admin Already Exists!");
+      console.log('Admin Already Exists!');
       return;
     }
 
@@ -30,14 +26,11 @@ export const seedAdmin = async () => {
     if (!name || !email || !password) {
       throw new AppError(
         httpStatus.INTERNAL_SERVER_ERROR,
-        "Admin Name, Email, Password Missing In Env File!!!",
+        'Admin Name, Email, Password Missing In Env File!!!',
       );
     }
 
-    const hashedPassword = await bcrypt.hash(
-      password,
-      Number(config.bcrypt_salt_rounds),
-    );
+    const hashedPassword = await bcrypt.hash(password, Number(config.bcrypt_salt_rounds));
 
     const admin = await prisma.user.create({
       data: {
@@ -50,9 +43,9 @@ export const seedAdmin = async () => {
       },
     });
 
-    console.log("Admin Created:", admin.email);
+    console.log('Admin Created:', admin.email);
   } catch (error) {
-    console.log("Error Seeding Admin:", error);
+    console.log('Error Seeding Admin:', error);
   }
 };
 
@@ -61,16 +54,10 @@ export const seedDemoUsers = async () => {
     const demoPassword = config.demo_password;
 
     if (!demoPassword) {
-      throw new AppError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Demo Password Missing In Env File!!!",
-      );
+      throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Demo Password Missing In Env File!!!');
     }
 
-    const hashedPassword = await bcrypt.hash(
-      demoPassword,
-      Number(config.bcrypt_salt_rounds),
-    );
+    const hashedPassword = await bcrypt.hash(demoPassword, Number(config.bcrypt_salt_rounds));
 
     // -------------------------
     // Demo Customer
@@ -78,11 +65,11 @@ export const seedDemoUsers = async () => {
 
     const customer = await prisma.user.upsert({
       where: {
-        email: "customer@parcelrelay.demo",
+        email: 'customer@parcelrelay.demo',
       },
 
       update: {
-        name: "Demo Customer",
+        name: 'Demo Customer',
         password: hashedPassword,
         role: UserRole.CUSTOMER,
         status: UserStatus.ACTIVE,
@@ -91,8 +78,8 @@ export const seedDemoUsers = async () => {
       },
 
       create: {
-        name: "Demo Customer",
-        email: "customer@parcelrelay.demo",
+        name: 'Demo Customer',
+        email: 'customer@parcelrelay.demo',
         password: hashedPassword,
         role: UserRole.CUSTOMER,
         status: UserStatus.ACTIVE,
@@ -107,11 +94,11 @@ export const seedDemoUsers = async () => {
 
     const courier = await prisma.user.upsert({
       where: {
-        email: "courier@parcelrelay.demo",
+        email: 'courier@parcelrelay.demo',
       },
 
       update: {
-        name: "Demo Courier",
+        name: 'Demo Courier',
         password: hashedPassword,
         role: UserRole.COURIER,
         status: UserStatus.ACTIVE,
@@ -120,8 +107,8 @@ export const seedDemoUsers = async () => {
       },
 
       create: {
-        name: "Demo Courier",
-        email: "courier@parcelrelay.demo",
+        name: 'Demo Courier',
+        email: 'courier@parcelrelay.demo',
         password: hashedPassword,
         role: UserRole.COURIER,
         status: UserStatus.ACTIVE,
@@ -140,9 +127,9 @@ export const seedDemoUsers = async () => {
       },
 
       update: {
-        phone: "01700000000",
-        vehicleType: "Bike",
-        vehicleNumber: "DHAKA-DEMO",
+        phone: '01700000000',
+        vehicleType: 'Bike',
+        vehicleNumber: 'DHAKA-DEMO',
         isAvailable: true,
         isVerified: true,
         applicationStatus: CourierApplicationStatus.APPROVED,
@@ -150,18 +137,18 @@ export const seedDemoUsers = async () => {
 
       create: {
         userId: courier.id,
-        phone: "01700000000",
-        vehicleType: "Bike",
-        vehicleNumber: "DHAKA-DEMO",
+        phone: '01700000000',
+        vehicleType: 'Bike',
+        vehicleNumber: 'DHAKA-DEMO',
         isAvailable: true,
         isVerified: true,
         applicationStatus: CourierApplicationStatus.APPROVED,
       },
     });
 
-    console.log("Demo Customer Ready:", customer.email);
-    console.log("Demo Courier Ready:", courier.email);
+    console.log('Demo Customer Ready:', customer.email);
+    console.log('Demo Courier Ready:', courier.email);
   } catch (error) {
-    console.log("Error Seeding Demo Users:", error);
+    console.log('Error Seeding Demo Users:', error);
   }
 };

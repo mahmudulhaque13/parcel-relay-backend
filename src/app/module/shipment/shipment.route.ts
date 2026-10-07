@@ -1,66 +1,54 @@
-import { Router } from "express";
+import { Router } from 'express';
 
-import { UserRole } from "../../../generated/prisma/enums";
+import { UserRole } from '../../../generated/prisma/enums';
 
-import { auth } from "../../middleware/checkAuth";
+import { auth } from '../../middleware/checkAuth';
 
-import { validateRequest } from "../../middleware/validateRequest";
+import { validateRequest } from '../../middleware/validateRequest';
 
-import { shipmentController } from "./shipment.controller";
+import { shipmentController } from './shipment.controller';
 
-import { shipmentValidation } from "./shipment.validation";
+import { shipmentValidation } from './shipment.validation';
 
 const router = Router();
 
 router.post(
-  "/quote",
+  '/quote',
   validateRequest(shipmentValidation.shipmentQuoteValidation),
   shipmentController.getShipmentQuote,
 );
 
 router.post(
-  "/",
+  '/',
   auth(UserRole.CUSTOMER),
   validateRequest(shipmentValidation.createShipmentValidation),
   shipmentController.createShipment,
 );
 
-router.get("/", auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
+router.get('/', auth(UserRole.CUSTOMER), shipmentController.getMyShipments);
+
+router.get('/:id/timeline', auth(UserRole.CUSTOMER), shipmentController.getShipmentTimeline);
 
 router.get(
-  "/:id/timeline",
-  auth(UserRole.CUSTOMER),
-  shipmentController.getShipmentTimeline,
-);
-
-router.get(
-  "/:id",
+  '/:id',
   auth(UserRole.CUSTOMER, UserRole.COURIER, UserRole.ADMIN),
   shipmentController.getShipmentById,
 );
 
 router.patch(
-  "/:id",
+  '/:id',
   auth(UserRole.CUSTOMER),
   validateRequest(shipmentValidation.updateShipmentValidation),
   shipmentController.updateShipment,
 );
 
-router.patch(
-  "/:id/cancel",
-  auth(UserRole.CUSTOMER),
-  shipmentController.cancelShipment,
-);
+router.patch('/:id/cancel', auth(UserRole.CUSTOMER), shipmentController.cancelShipment);
 
-router.delete(
-  "/:id",
-  auth(UserRole.CUSTOMER),
-  shipmentController.deleteShipment,
-);
+router.delete('/:id', auth(UserRole.CUSTOMER), shipmentController.deleteShipment);
 
 // Shipment status transition
 router.patch(
-  "/:id/status",
+  '/:id/status',
   auth(UserRole.CUSTOMER, UserRole.COURIER, UserRole.ADMIN),
   validateRequest(shipmentValidation.updateShipmentStatusValidation),
   shipmentController.updateShipmentStatus,

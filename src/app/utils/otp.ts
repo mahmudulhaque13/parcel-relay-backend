@@ -1,6 +1,6 @@
-import crypto from "crypto";
+import crypto from 'crypto';
 
-import { connectRedis, redisClient } from "../lib/redis";
+import { connectRedis, redisClient } from '../lib/redis';
 
 const OTP_EXPIRE_SECONDS = 5 * 60;
 const OTP_MAX_ATTEMPTS = 5;
@@ -23,14 +23,10 @@ const getCooldownKey = (email: string, type: string): string => {
 };
 
 const hashOtp = (otp: string): string => {
-  return crypto.createHash("sha256").update(otp).digest("hex");
+  return crypto.createHash('sha256').update(otp).digest('hex');
 };
 
-const saveOtp = async (
-  email: string,
-  type: string,
-  otp: string,
-): Promise<void> => {
+const saveOtp = async (email: string, type: string, otp: string): Promise<void> => {
   await connectRedis();
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -42,7 +38,7 @@ const saveOtp = async (
   const cooldownExists = await redisClient.exists(cooldownKey);
 
   if (cooldownExists) {
-    throw new Error("OTP resend cooldown is active");
+    throw new Error('OTP resend cooldown is active');
   }
 
   const hashedOtp = hashOtp(otp);
@@ -51,11 +47,11 @@ const saveOtp = async (
     EX: OTP_EXPIRE_SECONDS,
   });
 
-  await redisClient.set(attemptKey, "0", {
+  await redisClient.set(attemptKey, '0', {
     EX: OTP_EXPIRE_SECONDS,
   });
 
-  await redisClient.set(cooldownKey, "1", {
+  await redisClient.set(cooldownKey, '1', {
     EX: OTP_RESEND_COOLDOWN_SECONDS,
   });
 };
@@ -64,7 +60,7 @@ const verifyOtp = async (
   email: string,
   type: string,
   otp: string,
-): Promise<"VALID" | "NOT_FOUND" | "INVALID" | "MAX_ATTEMPTS"> => {
+): Promise<'VALID' | 'NOT_FOUND' | 'INVALID' | 'MAX_ATTEMPTS'> => {
   await connectRedis();
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -75,26 +71,25 @@ const verifyOtp = async (
   const savedOtpHash = await redisClient.get(otpKey);
 
   if (!savedOtpHash) {
-    return "NOT_FOUND";
+    return 'NOT_FOUND';
   }
 
-  const attempts = Number((await redisClient.get(attemptKey)) ?? "0");
+  const attempts = Number((await redisClient.get(attemptKey)) ?? '0');
 
   if (attempts >= OTP_MAX_ATTEMPTS) {
     await redisClient.del(otpKey);
     await redisClient.del(attemptKey);
 
-    return "MAX_ATTEMPTS";
+    return 'MAX_ATTEMPTS';
   }
 
   const inputOtpHash = hashOtp(otp);
 
-  const savedBuffer = Buffer.from(savedOtpHash, "hex");
-  const inputBuffer = Buffer.from(inputOtpHash, "hex");
+  const savedBuffer = Buffer.from(savedOtpHash, 'hex');
+  const inputBuffer = Buffer.from(inputOtpHash, 'hex');
 
   const isValid =
-    savedBuffer.length === inputBuffer.length &&
-    crypto.timingSafeEqual(savedBuffer, inputBuffer);
+    savedBuffer.length === inputBuffer.length && crypto.timingSafeEqual(savedBuffer, inputBuffer);
 
   if (!isValid) {
     const newAttempts = await redisClient.incr(attemptKey);
@@ -103,13 +98,13 @@ const verifyOtp = async (
       await redisClient.del(otpKey);
       await redisClient.del(attemptKey);
 
-      return "MAX_ATTEMPTS";
+      return 'MAX_ATTEMPTS';
     }
 
-    return "INVALID";
+    return 'INVALID';
   }
 
-  return "VALID";
+  return 'VALID';
 };
 
 const deleteOtp = async (email: string, type: string): Promise<void> => {

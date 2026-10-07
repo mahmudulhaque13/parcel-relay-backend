@@ -1,19 +1,19 @@
-import { UploadApiResponse } from "cloudinary";
+import { UploadApiResponse } from 'cloudinary';
 
-import cloudinary from "../lib/cloudinary";
+import cloudinary from '../lib/cloudinary';
 
 interface IUploadToCloudinary {
   buffer: Buffer;
   folder: string;
   publicId?: string;
-  resourceType?: "image" | "raw" | "video" | "auto";
+  resourceType?: 'image' | 'raw' | 'video' | 'auto';
 }
 
 const uploadToCloudinary = async ({
   buffer,
   folder,
   publicId,
-  resourceType = "auto",
+  resourceType = 'auto',
 }: IUploadToCloudinary): Promise<UploadApiResponse> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -31,7 +31,7 @@ const uploadToCloudinary = async ({
         }
 
         if (!result) {
-          reject(new Error("Cloudinary upload failed"));
+          reject(new Error('Cloudinary upload failed'));
           return;
         }
 

@@ -75,6 +75,8 @@ const applyCourier = async (
   payload: ICreateCourier,
   files: ICourierApplicationFiles,
 ) => {
+  console.log("[CourierApply] started");
+
   if (!files.identityDocument || !files.profilePhoto) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
@@ -98,20 +100,20 @@ const applyCourier = async (
     Number(config.bcrypt_salt_rounds),
   );
 
-  // Upload courier documents to Cloudinary
   const [identityDocumentUpload, profilePhotoUpload] = await Promise.all([
     cloudinaryUtils.uploadToCloudinary({
       buffer: files.identityDocument.buffer,
       folder: "parcel-relay/courier-documents",
       resourceType: "auto",
     }),
-
     cloudinaryUtils.uploadToCloudinary({
       buffer: files.profilePhoto.buffer,
       folder: "parcel-relay/courier-profiles",
       resourceType: "image",
     }),
   ]);
+
+  console.log("[CourierApply] cloudinary uploads completed");
 
   const result = await prisma.$transaction(async (tx) => {
     const courier = await tx.user.create({
@@ -139,15 +141,21 @@ const applyCourier = async (
     return courier;
   });
 
+  console.log("[CourierApply] database transaction completed");
+
   const otp = otpUtils.generateOtp();
 
   await otpUtils.saveOtp(result.email, "COURIER_EMAIL_VERIFICATION", otp);
+
+  console.log("[CourierApply] OTP saved");
 
   await emailUtils.sendOtpEmail(
     result.email,
     otp,
     "Courier Email Verification",
   );
+
+  console.log("[CourierApply] OTP email sent");
 
   return {
     id: result.id,

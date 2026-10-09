@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "functions": {
+    "dist/server.js": {
+      "includeFiles": "node_modules/pdfkit/js/standard-fonts/**"
+    }
+  }
+}

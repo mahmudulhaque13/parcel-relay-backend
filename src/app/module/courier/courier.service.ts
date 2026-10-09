@@ -325,6 +325,35 @@ const reviewCourierApplication = async (
   };
 };
 
+const getCourierApplications = async () => {
+  const applications = await prisma.courierProfile.findMany({
+    where: {
+      applicationStatus: "PENDING",
+      user: {
+        role: "COURIER",
+        isDeleted: false,
+      },
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          emailVerified: true,
+          createdAt: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return applications;
+};
+
 const assignCourier = async (adminId: string, payload: IAssignCourier) => {
   const courier = await prisma.user.findFirst({
     where: {
@@ -576,6 +605,7 @@ export const courierService = {
   applyCourier,
   verifyCourierEmail,
   reviewCourierApplication,
+  getCourierApplications,
   assignCourier,
   getCourierShipments,
   getCourierShipmentById,

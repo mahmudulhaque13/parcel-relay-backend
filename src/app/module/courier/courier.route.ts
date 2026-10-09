@@ -32,6 +32,12 @@ router.post(
   courierController.verifyCourierEmail,
 );
 
+router.get(
+  "/applications",
+  auth(UserRole.ADMIN),
+  courierController.getCourierApplications,
+);
+
 router.patch(
   "/applications/:id/review",
   auth(UserRole.ADMIN),

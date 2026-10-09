@@ -60,6 +60,18 @@ const reviewCourierApplication = catchAsync(
   },
 );
 
+const getCourierApplications = catchAsync(
+  async (_req: Request, res: Response) => {
+    const result = await courierService.getCourierApplications();
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Pending courier applications retrieved successfully",
+      data: result,
+    });
+  },
+);
+
 const assignCourier = catchAsync(async (req: Request, res: Response) => {
   const adminId = req.user!.id;
 
@@ -108,6 +120,7 @@ export const courierController = {
   applyCourier,
   verifyCourierEmail,
   reviewCourierApplication,
+  getCourierApplications,
   assignCourier,
   getCourierShipments,
   getCourierShipmentById,

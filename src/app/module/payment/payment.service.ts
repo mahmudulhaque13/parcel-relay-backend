@@ -1,35 +1,26 @@
 import httpStatus from "http-status-codes";
 import Stripe from "stripe";
-
 import config from "../../config";
 import { prisma } from "../../lib/prisma";
 import { stripe } from "../../lib/stripe";
 import { AppError } from "../../utils/AppError";
 import { invoicePdfUtils } from "../../utils/pdf/invoice.pdf";
 import { emailUtils } from "../../utils/email";
-
 import type { IInitiatePayment, IRefundPayment } from "./payment.interface";
 import { cloudinaryUtils } from "../../utils/cloudinary";
-
 const initiatePayment = async (
   customerId: string,
   payload: IInitiatePayment,
 ) => {
-  // 1. Find shipment
   const shipment = await prisma.shipment.findUnique({
-    where: {
-      id: payload.shipmentId,
-    },
-    include: {
-      customer: true,
-    },
+    where: { id: payload.shipmentId },
+    include: { customer: true },
   });
 
   if (!shipment) {
     throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
   }
 
-  // 2. Check shipment ownership
   if (shipment.customerId !== customerId) {
     throw new AppError(
       httpStatus.FORBIDDEN,
@@ -37,7 +28,6 @@ const initiatePayment = async (
     );
   }
 
-  // 3. Check if payment is already completed
   if (shipment.paymentStatus === "PAID") {
     throw new AppError(
       httpStatus.BAD_REQUEST,
@@ -45,7 +35,6 @@ const initiatePayment = async (
     );
   }
 
-  // 4. Payment is allowed only for pending payment shipment
   if (shipment.status !== "PENDING_PAYMENT") {
     throw new AppError(
       httpStatus.BAD_REQUEST,
@@ -53,23 +42,103 @@ const initiatePayment = async (
     );
   }
 
-  // 5. Find existing pending Stripe payment attempt
-  const existingPayment = await prisma.paymentAttempt.findFirst({
+  const amountInPaisa = Math.round(Number(shipment.deliveryCharge) * 100);
+
+  if (!Number.isSafeInteger(amountInPaisa) || amountInPaisa <= 0) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Invalid shipment delivery charge",
+    );
+  }
+
+  let paymentAttempt = await prisma.paymentAttempt.findFirst({
     where: {
       shipmentId: shipment.id,
       status: "PENDING",
       method: "STRIPE",
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 
-  let paymentAttempt = existingPayment;
+  // Reuse an existing open Checkout Session instead of creating duplicates.
+  if (paymentAttempt) {
+    const gatewayResponse = paymentAttempt.gatewayResponse as {
+      sessionId?: unknown;
+      paymentUrl?: unknown;
+    } | null;
 
-  // 6. Create payment attempt if none exists
+    if (typeof gatewayResponse?.sessionId === "string") {
+      const previousSession = await stripe.checkout.sessions.retrieve(
+        gatewayResponse.sessionId,
+      );
+
+      if (previousSession.status === "open") {
+        const storedAttemptAmount = Math.round(
+          Number(paymentAttempt.amount) * 100,
+        );
+
+        if (
+          storedAttemptAmount === amountInPaisa &&
+          previousSession.amount_total === amountInPaisa &&
+          previousSession.url
+        ) {
+          return {
+            transactionId: paymentAttempt.transactionId,
+            amount: paymentAttempt.amount,
+            paymentUrl: previousSession.url,
+            sessionId: previousSession.id,
+          };
+        }
+
+        // The open session has stale pricing; expire it before creating a new attempt.
+        await stripe.checkout.sessions.expire(previousSession.id);
+
+        await prisma.paymentAttempt.update({
+          where: { id: paymentAttempt.id },
+          data: { status: "CANCELLED" },
+        });
+
+        paymentAttempt = null;
+      } else if (previousSession.status === "complete") {
+        if (previousSession.payment_status === "paid") {
+          throw new AppError(
+            httpStatus.BAD_REQUEST,
+            "Payment is completed and is awaiting confirmation. Please check the shipment status shortly.",
+          );
+        }
+
+        await prisma.paymentAttempt.update({
+          where: { id: paymentAttempt.id },
+          data: { status: "FAILED" },
+        });
+
+        paymentAttempt = null;
+      } else {
+        // An expired Checkout Session cannot be used again.
+        await prisma.paymentAttempt.update({
+          where: { id: paymentAttempt.id },
+          data: { status: "CANCELLED" },
+        });
+
+        paymentAttempt = null;
+      }
+    } else if (
+      Math.round(Number(paymentAttempt.amount) * 100) !== amountInPaisa
+    ) {
+      // Do not attach a newly priced Checkout Session to a stale payment attempt.
+      await prisma.paymentAttempt.update({
+        where: { id: paymentAttempt.id },
+        data: { status: "CANCELLED" },
+      });
+
+      paymentAttempt = null;
+    }
+  }
+
   if (!paymentAttempt) {
-    const transactionId = `PR-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const transactionId = `PR-${Date.now()}-${Math.floor(
+      1000 + Math.random() * 9000,
+    )}`;
 
     paymentAttempt = await prisma.paymentAttempt.create({
       data: {
@@ -82,48 +151,43 @@ const initiatePayment = async (
     });
   }
 
-  // 7. Convert BDT to paisa
-  const amountInPaisa = Math.round(Number(shipment.deliveryCharge) * 100);
+  // Use the amount saved on the payment attempt as the Stripe charge amount.
+  const attemptAmountInPaisa = Math.round(Number(paymentAttempt.amount) * 100);
 
-  // 8. Create Stripe Checkout Session
+  if (attemptAmountInPaisa !== amountInPaisa) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Payment attempt amount does not match the current delivery charge",
+    );
+  }
+
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "payment",
-
     payment_method_types: ["card"],
-
     line_items: [
       {
         price_data: {
           currency: "bdt",
-
           product_data: {
             name: `ParcelRelay Shipment ${shipment.trackingNumber}`,
             description: shipment.packageDescription,
           },
-
-          unit_amount: amountInPaisa,
+          unit_amount: attemptAmountInPaisa,
         },
-
         quantity: 1,
       },
     ],
-
     customer_email: shipment.customer.email,
-
     client_reference_id: shipment.id,
-
     metadata: {
       shipmentId: shipment.id,
       paymentAttemptId: paymentAttempt.id,
       transactionId: paymentAttempt.transactionId,
     },
-
     success_url: config.stripe_success_url,
-
     cancel_url: config.stripe_cancel_url,
   });
 
-  // 9. Check Stripe Checkout URL
   if (!checkoutSession.url) {
     throw new AppError(
       httpStatus.BAD_GATEWAY,
@@ -131,11 +195,8 @@ const initiatePayment = async (
     );
   }
 
-  // 10. Save Stripe session information
   await prisma.paymentAttempt.update({
-    where: {
-      id: paymentAttempt.id,
-    },
+    where: { id: paymentAttempt.id },
     data: {
       gatewayResponse: {
         sessionId: checkoutSession.id,
@@ -144,10 +205,9 @@ const initiatePayment = async (
     },
   });
 
-  // 11. Return payment information
   return {
     transactionId: paymentAttempt.transactionId,
-    amount: shipment.deliveryCharge,
+    amount: paymentAttempt.amount,
     paymentUrl: checkoutSession.url,
     sessionId: checkoutSession.id,
   };
@@ -157,22 +217,18 @@ const paymentSuccess = async (sessionId: string) => {
   if (!sessionId) {
     throw new AppError(httpStatus.BAD_REQUEST, "Stripe session ID is required");
   }
-
   const session = await stripe.checkout.sessions.retrieve(sessionId);
-
   return {
     sessionId: session.id,
     paymentStatus: session.payment_status,
     status: session.status,
   };
 };
-
 const paymentCancel = async () => {
   return {
     message: "Payment was cancelled",
   };
 };
-
 const getPaymentStatus = async (shipmentId: string, customerId: string) => {
   const shipment = await prisma.shipment.findFirst({
     where: {
@@ -188,11 +244,9 @@ const getPaymentStatus = async (shipmentId: string, customerId: string) => {
       deliveryCharge: true,
     },
   });
-
   if (!shipment) {
     throw new AppError(httpStatus.NOT_FOUND, "Shipment not found");
   }
-
   const paymentAttempts = await prisma.paymentAttempt.findMany({
     where: {
       shipmentId,
@@ -211,13 +265,11 @@ const getPaymentStatus = async (shipmentId: string, customerId: string) => {
       createdAt: "desc",
     },
   });
-
   return {
     shipment,
     payments: paymentAttempts,
   };
 };
-
 const refundPayment = async (adminId: string, payload: IRefundPayment) => {
   // 1. Find the latest Stripe payment attempt for the shipment
   const paymentAttempt = await prisma.paymentAttempt.findFirst({
@@ -232,11 +284,9 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
       shipment: true,
     },
   });
-
   if (!paymentAttempt) {
     throw new AppError(httpStatus.NOT_FOUND, "Stripe payment not found");
   }
-
   // 2. Prevent duplicate refund
   if (paymentAttempt.status === "REFUNDED") {
     throw new AppError(
@@ -244,7 +294,6 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
       "Shipment payment is already refunded",
     );
   }
-
   // 3. Payment must be PAID before refund
   if (paymentAttempt.status !== "PAID") {
     throw new AppError(
@@ -252,7 +301,6 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
       "Stripe payment is not eligible for refund",
     );
   }
-
   // 4. Only returned shipments can be refunded
   if (paymentAttempt.shipment.status !== "RETURNED_TO_SENDER") {
     throw new AppError(
@@ -260,43 +308,34 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
       "Only returned shipments can be refunded",
     );
   }
-
   // 5. Get Stripe Payment Intent
   const gatewayResponse = paymentAttempt.gatewayResponse as {
     paymentIntentId?: string;
     sessionId?: string;
   } | null;
-
   let paymentIntentId = gatewayResponse?.paymentIntentId;
-
   if (!paymentIntentId) {
     const sessionId = gatewayResponse?.sessionId;
-
     if (!sessionId) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
         "Stripe payment session information is missing",
       );
     }
-
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-
     if (!session.payment_intent) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
         "Stripe payment intent not found",
       );
     }
-
     paymentIntentId = session.payment_intent as string;
   }
-
   // 6. Create Stripe refund
   const refund = await stripe.refunds.create({
     payment_intent: paymentIntentId,
     amount: Math.round(Number(paymentAttempt.amount) * 100),
   });
-
   // 7. Update database atomically
   const result = await prisma.$transaction(async (tx) => {
     const updatedPaymentAttempt = await tx.paymentAttempt.update({
@@ -313,7 +352,6 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
         },
       },
     });
-
     const updatedShipment = await tx.shipment.update({
       where: {
         id: paymentAttempt.shipmentId,
@@ -322,7 +360,6 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
         paymentStatus: "REFUNDED",
       },
     });
-
     // 8. Create shipment event
     await tx.shipmentEvent.create({
       data: {
@@ -331,7 +368,6 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
         description: "Shipment payment refunded through Stripe.",
       },
     });
-
     // 9. Create audit log
     await tx.auditLog.create({
       data: {
@@ -348,13 +384,11 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
         },
       },
     });
-
     return {
       paymentAttempt: updatedPaymentAttempt,
       shipment: updatedShipment,
     };
   });
-
   return {
     refundId: refund.id,
     refundStatus: refund.status,
@@ -363,14 +397,11 @@ const refundPayment = async (adminId: string, payload: IRefundPayment) => {
     shipmentStatus: result.shipment.status,
   };
 };
-
 const handleWebhook = async (payload: Buffer, signature: string) => {
   if (!signature) {
     throw new AppError(httpStatus.BAD_REQUEST, "Stripe signature is missing");
   }
-
   let event: Stripe.Event;
-
   try {
     event = stripe.webhooks.constructEvent(
       payload,
@@ -383,7 +414,6 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
       "Invalid Stripe webhook signature",
     );
   }
-
   // Process only completed checkout sessions.
   if (event.type !== "checkout.session.completed") {
     return {
@@ -392,17 +422,14 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
       message: "Event received but no action was required",
     };
   }
-
   const session = event.data.object as Stripe.Checkout.Session;
   const paymentAttemptId = session.metadata?.paymentAttemptId;
-
   if (!paymentAttemptId) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Payment attempt ID is missing from Stripe session",
     );
   }
-
   const paymentAttempt = await prisma.paymentAttempt.findUnique({
     where: {
       id: paymentAttemptId,
@@ -417,12 +444,10 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
       },
     },
   });
-
   if (!paymentAttempt) {
     throw new AppError(httpStatus.NOT_FOUND, "Payment attempt not found");
   }
-
-  // Stripe can retry webhook deliveries.
+  // Stripe retries webhook deliveries; already-paid attempts are idempotent.
   if (paymentAttempt.status === "PAID") {
     return {
       received: true,
@@ -431,26 +456,47 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
     };
   }
 
+  if (paymentAttempt.status !== "PENDING") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Payment attempt is no longer pending",
+    );
+  }
+
+  if (session.metadata?.shipmentId !== paymentAttempt.shipmentId) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Stripe session shipment does not match the payment attempt",
+    );
+  }
+
+  const storedGatewayResponse = paymentAttempt.gatewayResponse as {
+    sessionId?: unknown;
+  } | null;
+
+  if (storedGatewayResponse?.sessionId !== session.id) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Stripe session does not match the active payment session",
+    );
+  }
+
   if (session.payment_status !== "paid") {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Stripe payment is not completed",
     );
   }
-
   if (session.currency !== "bdt") {
     throw new AppError(httpStatus.BAD_REQUEST, "Invalid payment currency");
   }
-
   const expectedAmount = Math.round(Number(paymentAttempt.amount) * 100);
-
   if (session.amount_total !== expectedAmount) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Payment amount does not match shipment amount",
     );
   }
-
   /*
    * IMPORTANT:
    * Commit the payment and shipment status before generating invoices,
@@ -458,10 +504,12 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
    *
    * These secondary operations must not roll back a confirmed payment.
    */
+
   const result = await prisma.$transaction(async (tx) => {
-    const updatedPayment = await tx.paymentAttempt.update({
+    const paymentUpdate = await tx.paymentAttempt.updateMany({
       where: {
         id: paymentAttempt.id,
+        status: "PENDING",
       },
       data: {
         status: "PAID",
@@ -479,6 +527,24 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
         },
       },
     });
+
+    // Another webhook may have processed this payment first.
+    if (paymentUpdate.count === 0) {
+      return null;
+    }
+
+    const updatedPayment = await tx.paymentAttempt.findUnique({
+      where: {
+        id: paymentAttempt.id,
+      },
+    });
+
+    if (!updatedPayment) {
+      throw new AppError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        "Updated payment attempt could not be found",
+      );
+    }
 
     const shipment = await tx.shipment.update({
       where: {
@@ -521,6 +587,14 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
     };
   });
 
+  if (!result) {
+    return {
+      received: true,
+      alreadyProcessed: true,
+      message: "Payment webhook was already processed",
+    };
+  }
+
   // Payment is committed. Secondary operations are best-effort.
   try {
     const invoicePdf = await invoicePdfUtils.generateInvoicePdf({
@@ -537,9 +611,7 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
       transactionId: result.paymentAttempt.transactionId,
       createdAt: result.paymentAttempt.paidAt ?? new Date(),
     });
-
     let invoicePdfUrl: string | undefined;
-
     try {
       const invoiceUpload = await cloudinaryUtils.uploadToCloudinary({
         buffer: invoicePdf,
@@ -547,12 +619,10 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
         publicId: `invoice-${result.paymentAttempt.transactionId}`,
         resourceType: "raw",
       });
-
       invoicePdfUrl = invoiceUpload.secure_url;
     } catch (error) {
       console.error("[Stripe webhook] Invoice upload failed:", error);
     }
-
     try {
       await emailUtils.sendPaymentSuccessEmail(
         paymentAttempt.shipment.customer.email,
@@ -574,7 +644,6 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
         error,
       );
     }
-
     if (invoicePdfUrl) {
       try {
         await prisma.paymentAttempt.update({
@@ -601,7 +670,6 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
       error,
     );
   }
-
   return {
     received: true,
     alreadyProcessed: false,
@@ -612,7 +680,6 @@ const handleWebhook = async (payload: Buffer, signature: string) => {
     paymentStatus: result.shipment.paymentStatus,
   };
 };
-
 export const paymentService = {
   initiatePayment,
   paymentSuccess,

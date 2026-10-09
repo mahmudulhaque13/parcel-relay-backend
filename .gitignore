@@ -34,3 +34,8 @@ coverage/
 .tmp/
 
 src/generated/
+.vercel
+.env*
+
+!.env.example
+.local-backups/

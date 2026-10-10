@@ -1,14 +1,8 @@
+import type { ShipmentStatus } from "../../../generated/prisma/client";
+
 export interface ITrackingResponse {
   trackingNumber: string;
-  currentStatus: string;
-
-  shipment: {
-    recipientName: string;
-    deliveryAddress: string;
-    weight: string;
-    deliveryCharge: string;
-    codAmount: string;
-  };
+  currentStatus: ShipmentStatus;
 
   originZone: {
     name: string;
@@ -20,10 +14,10 @@ export interface ITrackingResponse {
     code: string;
   };
 
-  timeline: Array<{
-    status: string;
+  timeline: {
+    status: ShipmentStatus;
     description: string | null;
     location: string | null;
     createdAt: Date;
-  }>;
+  }[];
 }

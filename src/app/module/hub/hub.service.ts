@@ -146,6 +146,46 @@ const deactivateHub = async (hubId: string) => {
   return hub;
 };
 
+const activateHub = async (hubId: string) => {
+  const existingHub = await prisma.hub.findFirst({
+    where: {
+      id: hubId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingHub) {
+    throw new AppError(httpStatus.NOT_FOUND, "Hub not found");
+  }
+
+  if (existingHub.isActive) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Hub is already active");
+  }
+
+  const zone = await prisma.zone.findFirst({
+    where: {
+      id: existingHub.zoneId,
+      isDeleted: false,
+    },
+  });
+
+  if (!zone || !zone.isActive) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Cannot activate hub because its zone is inactive or deleted",
+    );
+  }
+
+  return prisma.hub.update({
+    where: {
+      id: hubId,
+    },
+    data: {
+      isActive: true,
+    },
+  });
+};
+
 const getHubById = async (hubId: string) => {
   const hub = await prisma.hub.findFirst({
     where: {
@@ -196,5 +236,6 @@ export const hubService = {
   getHubById,
   updateHub,
   deactivateHub,
+  activateHub,
   deleteHub,
 };

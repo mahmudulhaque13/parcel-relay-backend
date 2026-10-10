@@ -118,6 +118,32 @@ const deactivateZone = async (zoneId: string) => {
   return zone;
 };
 
+const activateZone = async (zoneId: string) => {
+  const existingZone = await prisma.zone.findFirst({
+    where: {
+      id: zoneId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingZone) {
+    throw new AppError(httpStatus.NOT_FOUND, "Zone not found");
+  }
+
+  if (existingZone.isActive) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Zone is already active");
+  }
+
+  return prisma.zone.update({
+    where: {
+      id: zoneId,
+    },
+    data: {
+      isActive: true,
+    },
+  });
+};
+
 const deleteZone = async (zoneId: string) => {
   const existingZone = await prisma.zone.findFirst({
     where: {
@@ -150,5 +176,6 @@ export const zoneService = {
   getAllZonesForAdmin,
   updateZone,
   deactivateZone,
+  activateZone,
   deleteZone,
 };

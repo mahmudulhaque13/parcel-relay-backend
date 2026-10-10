@@ -24,6 +24,12 @@ router.get(
 );
 
 router.patch(
+  "/:id/activate",
+  auth(UserRole.ADMIN),
+  zoneController.activateZone,
+);
+
+router.patch(
   "/:id",
   auth(UserRole.ADMIN),
   validateRequest(zoneValidation.updateZoneValidation),

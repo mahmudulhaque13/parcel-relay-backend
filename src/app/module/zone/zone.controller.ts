@@ -58,6 +58,16 @@ const deactivateZone = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const activateZone = catchAsync(async (req: Request, res: Response) => {
+  const result = await zoneService.activateZone(req.params.id as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: "Zone activated successfully",
+    data: result,
+  });
+});
+
 const deleteZone = catchAsync(async (req: Request, res: Response) => {
   const result = await zoneService.deleteZone(req.params.id as string);
 
@@ -74,5 +84,6 @@ export const zoneController = {
   getAllZonesForAdmin,
   updateZone,
   deactivateZone,
+  activateZone,
   deleteZone,
 };

@@ -120,9 +120,10 @@ const updateHub = async (hubId: string, payload: IUpdateHub) => {
 };
 
 const deactivateHub = async (hubId: string) => {
-  const existingHub = await prisma.hub.findUnique({
+  const existingHub = await prisma.hub.findFirst({
     where: {
       id: hubId,
+      isDeleted: false,
     },
   });
 
@@ -134,7 +135,7 @@ const deactivateHub = async (hubId: string) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Hub is already inactive");
   }
 
-  const hub = await prisma.hub.update({
+  return prisma.hub.update({
     where: {
       id: hubId,
     },
@@ -142,8 +143,6 @@ const deactivateHub = async (hubId: string) => {
       isActive: false,
     },
   });
-
-  return hub;
 };
 
 const activateHub = async (hubId: string) => {
